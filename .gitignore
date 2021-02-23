@@ -10,6 +10,9 @@ Functional AffinityNet Work/*.html
 # Ignore all data files (secured, personal information)
 Data
 
+# Ignore XML Scehmatic Files
+***.xml
+
 # Ignore local VIS dependencies
 vis
 vis-old
