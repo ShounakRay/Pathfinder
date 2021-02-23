@@ -3,8 +3,10 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: GlencoeModeling_SALES_AffinityNet.py
 # @Last modified by:   Ray
-# @Last modified time: 23-Feb-2021 16:02:29:296  GMT-0700
+# @Last modified time: 23-Feb-2021 16:02:64:642  GMT-0700
 # @License: [Private IP]
+
+# TODO: Review Bryce's Code
 
 
 import collections
