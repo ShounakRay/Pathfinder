@@ -1,3 +1,19 @@
+# Ignore all system files
+.DS_Store
+
+# Ignore all graphs
+EXT-STRAT
+GENERICS
+Graph Archives
+Functional AffinityNet Work/*.html
+
+# Ignore all data files (secured, personal information)
+Data
+
+# Ignore local VIS dependencies
+vis
+vis-old
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
