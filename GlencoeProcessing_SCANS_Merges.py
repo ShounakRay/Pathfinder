@@ -3,10 +3,11 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 25-Feb-2021 00:02:68:685  GMT-0700
+# @Last modified time: 25-Feb-2021 02:02:56:568  GMT-0700
 # @License: [Private IP]
 
 import functools
+import math
 import re
 from collections import Counter
 from itertools import chain
@@ -14,10 +15,22 @@ from itertools import chain
 import numpy as np
 import pandas as pd
 
-# '1741GC-1'.split('-')
+group_relations = {'GC': 'Golf Club',
+                   'AFF': 'Affiliate',
+                   'INT': 'Internal (INT)',
+                   'GL': 'Internal (GL)',
+                   'DCGuest': 'Downtown Guest',
+                   'LG': 'League',
+                   'CORP': 'Corporate'}
 
 
-def dep_type(row):
+def util_search_df(df, *conditions):
+    def conjunction(*conditions):
+        return functools.reduce(np.logical_and, conditions)
+    return df[conjunction(*conditions)]
+
+
+def lambda_dep_type(row):
     if(row['Dependent']):
         seg = int(row['lettered_ID'].split('-')[1])
         if(seg == 1):
@@ -30,19 +43,17 @@ def dep_type(row):
         return None
 
 
-def search_df(df, *conditions):
-    def conjunction(*conditions):
-        return functools.reduce(np.logical_and, conditions)
-    return df[conjunction(*conditions)]
+def lambda_mem_type(row, GROUP_RELATIONS=group_relations):
+    print([row['Mem_Category_Abbrev'], type(row['Mem_Category_Abbrev'])])
+    if(row['Mem_Category_Abbrev']):
+        if(type(row['Mem_Category_Abbrev']) == float):
+            if(not math.isnan(row['Mem_Category_Abbrev'])):
+                return GROUP_RELATIONS.get(row['Mem_Category_Abbrev']) or 'Non-Classified'
+        else:
+            return GROUP_RELATIONS.get(row['Mem_Category_Abbrev']) or 'Non-Classified'
+    else:
+        return None
 
-
-group_relations = {'GC': 'Golf Club',
-                   'AFF': 'Affiliate',
-                   'INT': 'Internal (INT)',
-                   'GL': 'Internal (GL)',
-                   'DCGuest': 'Downtown Guest',
-                   'LG': 'League',
-                   'CORP': 'Corporate'}
 
 df_MANSCANS = pd.read_csv("Data/MANUAL_SCANS.csv", low_memory=False)
 df_SCANS = pd.read_csv("Data/SCANS.csv", low_memory=False)
@@ -53,26 +64,35 @@ df_SALES = pd.read_csv("Data/SALES.csv", low_memory=False)
 dfs = [df_MANSCANS, df_SCANS, df_EVENTS, df_MEMEBRSHIP, df_RESERVATIONS, df_SALES]
 
 # TODO: How do you tag 123GC (Corporate or Golf Club)
+# TODO: Test Feature engineering across all cases
 
+# Aggregate and accumulate all member numbers across all the datasets
 store = []
 for d in dfs:
     store.append(set(d['member_number']))
-unique_mids = list(set(list(chain.from_iterable(store))))
-lettered_mids = [mid for mid in unique_mids if(type(mid) == str and any(let.isalpha() for let in mid))]
-lmids = pd.DataFrame(lettered_mids, columns=['lettered_ID'])
-lmids['Family_ID'] = lmids['lettered_ID'].apply(lambda x: re.sub(r'[A-Z][A-Z]*|-[0-9]{1,2}', '', x))
-lmids['Mem_Category_Abbrev'] = lmids['lettered_ID'].apply(lambda x: re.sub(r'[0-9]', '', x).replace('-', '').strip())
-lmids['Mem_Category_Type'] = lmids['Mem_Category_Abbrev'].apply(lambda x: group_relations.get(x) or 'Non-Classified')
-lmids['Dependent'] = lmids['lettered_ID'].apply(lambda x: True if('-' in x) else False)
-lmids['Dependent_Type'] = lmids.apply(dep_type, axis=1)
-lmids = lmids.sort_values('lettered_ID').reset_index(drop=True)
+# Reformat data to DataFrame and optionally filter to only include those that include letters (ignoring nans)
+mids = [x for x in list(set(list(chain.from_iterable(store)))) if x == x]
+mids = [mid for mid in mids if(type(mid) == str and any(let.isalpha() for let in mid))]
+df_mids = pd.DataFrame(mids, columns=['lettered_ID'])
 
-[x for x in lmids['lettered_ID'] if 'INT' in x]
+# Determine Regex Pattern to process Family ID
+pat_partial = '('
+for k in group_relations.keys():
+    pat_partial += k + '|'
+pat = pat_partial[:-1] + ')' + r'|-[0-9]{1,2}'
+# Apply Regex
+df_mids['Family_ID'] = df_mids['lettered_ID'].apply(lambda x: re.sub(pat, '', x))
+df_mids['Mem_Category_Abbrev'] = df_mids['lettered_ID'].apply(lambda x:
+                                                              re.sub(r'[0-9]', '', x).replace('-', '').strip())
+df_mids.replace(r'^\s*$', np.nan, regex=True, inplace=True)
+df_mids['Mem_Category_Type'] = df_mids.apply(lambda_mem_type, axis=1)
+df_mids.drop('Mem_Category_Abbrev', axis=1, inplace=True)
+df_mids['Dependent'] = df_mids['lettered_ID'].apply(lambda x: True if('-' in x) else False)
+df_mids['Dependent_Type'] = df_mids.apply(lambda_dep_type, axis=1)
+df_mids = df_mids.sort_values('Family_ID').reset_index(drop=True)
 
-
-# lmids.to_html('lmids.html')
-list(Counter(lmids['Family_ID']).keys())
-
+# [x for x in df_mids['lettered_ID'] if 'INT' in x]
+# df_mids.to_html('df_mids.html')
 
 # DATA PROCESSING
 df_MANSCANS['member_name'] = df_MANSCANS['member_name'].str.upper()
