@@ -3,13 +3,15 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 24-Feb-2021 22:02:27:277  GMT-0700
+# @Last modified time: 25-Feb-2021 00:02:68:685  GMT-0700
 # @License: [Private IP]
 
+import functools
 import re
 from collections import Counter
 from itertools import chain
 
+import numpy as np
 import pandas as pd
 
 # '1741GC-1'.split('-')
@@ -18,7 +20,6 @@ import pandas as pd
 def dep_type(row):
     if(row['Dependent']):
         seg = int(row['lettered_ID'].split('-')[1])
-        print(seg)
         if(seg == 1):
             return 'Spousal'
         elif(seg > 1):
@@ -27,6 +28,12 @@ def dep_type(row):
             return 'Unclassified'
     else:
         return None
+
+
+def search_df(df, *conditions):
+    def conjunction(*conditions):
+        return functools.reduce(np.logical_and, conditions)
+    return df[conjunction(*conditions)]
 
 
 group_relations = {'GC': 'Golf Club',
@@ -45,22 +52,26 @@ df_RESERVATIONS = pd.read_csv("Data/RESERVATIONS.csv", low_memory=False)
 df_SALES = pd.read_csv("Data/SALES.csv", low_memory=False)
 dfs = [df_MANSCANS, df_SCANS, df_EVENTS, df_MEMEBRSHIP, df_RESERVATIONS, df_SALES]
 
+# TODO: How do you tag 123GC (Corporate or Golf Club)
+
 store = []
 for d in dfs:
     store.append(set(d['member_number']))
 unique_mids = list(set(list(chain.from_iterable(store))))
 lettered_mids = [mid for mid in unique_mids if(type(mid) == str and any(let.isalpha() for let in mid))]
 lmids = pd.DataFrame(lettered_mids, columns=['lettered_ID'])
+lmids['Family_ID'] = lmids['lettered_ID'].apply(lambda x: re.sub(r'[A-Z][A-Z]*|-[0-9]{1,2}', '', x))
 lmids['Mem_Category_Abbrev'] = lmids['lettered_ID'].apply(lambda x: re.sub(r'[0-9]', '', x).replace('-', '').strip())
-lmids['Mem_Category_Type'] = [chg for chg in lmids['Mem_Category_Abbrev'].replace(group_relations)
-                              if(chg in group_relations.keys()) else None]
+lmids['Mem_Category_Type'] = lmids['Mem_Category_Abbrev'].apply(lambda x: group_relations.get(x) or 'Non-Classified')
 lmids['Dependent'] = lmids['lettered_ID'].apply(lambda x: True if('-' in x) else False)
 lmids['Dependent_Type'] = lmids.apply(dep_type, axis=1)
+lmids = lmids.sort_values('lettered_ID').reset_index(drop=True)
 
-Counter(lmids['Mem_Category_Type'])
-Counter(lmids['Mem_Category_Abbrev'])
+[x for x in lmids['lettered_ID'] if 'INT' in x]
 
-mid = unique_mids[0]
+
+# lmids.to_html('lmids.html')
+list(Counter(lmids['Family_ID']).keys())
 
 
 # DATA PROCESSING

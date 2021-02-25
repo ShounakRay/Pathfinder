@@ -17,6 +17,7 @@ Ignore all reference ZIP files
 
 # Ignore all data files (secured, personal information)
 Data
+*.html
 
 # Ignore XML Scehmatic Files
 # ***.xml
