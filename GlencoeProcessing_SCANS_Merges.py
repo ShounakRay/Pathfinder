@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 25-Feb-2021 02:02:56:568  GMT-0700
+# @Last modified time: 25-Feb-2021 16:02:36:365  GMT-0700
 # @License: [Private IP]
 
 import functools
@@ -53,6 +53,17 @@ def lambda_mem_type(row, GROUP_RELATIONS=group_relations):
             return GROUP_RELATIONS.get(row['Mem_Category_Abbrev']) or 'Non-Classified'
     else:
         return None
+
+# Counter(df_RESERVATIONS['start_time'].isnull())
+# Counter(df_SALES['start_time'].isnull())
+# df_MEMEBRSHIP['activation_date']
+
+# TODO: Data Requirement
+# Do ID's show rough order in the membership data? But we still need actual
+# SALES exact time
+# Times for the reservations (NAN values for reservation times)
+# <><> How many times do you sign up for an event
+# Duration of program times and activities, reservations
 
 
 df_MANSCANS = pd.read_csv("Data/MANUAL_SCANS.csv", low_memory=False)
