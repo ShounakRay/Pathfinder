@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 01-Mar-2021 13:03:70:708  GMT-0700
+# @Last modified time: 01-Mar-2021 14:03:67:674  GMT-0700
 # @License: [Private IP]
 
 import functools
@@ -28,6 +28,11 @@ def util_search_df(df, *conditions):
     def conjunction(*conditions):
         return functools.reduce(np.logical_and, conditions)
     return df[conjunction(*conditions)]
+
+
+def util_drop_level(df):
+    df.columns = df.columns.droplevel(0)
+    return df
 
 
 def lambda_dep_type(row):
@@ -74,22 +79,109 @@ df_RESERVATIONS = pd.read_csv("Data/RESERVATIONS.csv", low_memory=False)
 df_SALES = pd.read_csv("Data/SALES.csv", low_memory=False)
 dfs = [df_MANSCANS, df_SCANS, df_EVENTS, df_MEMEBRSHIP, df_RESERVATIONS, df_SALES]
 
+# Manually Input Categorizations and Store
 all_cols = set(list(chain.from_iterable([list(d.columns) for d in dfs])))
-
+tuple_assignment = []
+# for col in all_cols:
+#     tuple_assigment.append((col, input('Input Category for ' + col + ':')))
 # MULTI-INDEX the columns for better reference
-tuple_assignment = [('member_name', 'Demographic'),
+tuple_assignment = [('prefix', 'Demographics'),
+                    ('statement_delivery_method', 'Preferences'),
+                    ('card_holder_name', 'Demographics'),
+                    ('charge_item', 'Transactions'),
+                    ('secondary_email', 'Demographics'),
+                    ('item_total', 'Transactions'),
+                    ('card_holder', 'Demographics'),
+                    ('badge', 'Identification'),
+                    ('age_bin', 'Demographics'),
+                    ('last_name', 'Demographics'),
+                    ('card_template', 'Miscellaneous'),
+                    ('home_phone', 'Demographics'),
+                    ('event', 'Core'),
+                    ('quantity', 'Transactions'),
+                    ('event_name', 'Core'),
+                    ('source', 'Core'),
                     ('entries_in_a_month', 'Miscellaneous'),
-                    ('notes', 'Miscellaneous'),
-                    ('class_code', 'Miscellaneous'),
-                    ('age', 'Demographic'),
-                    ('gender', 'Demographic'),
+                    ('salutation_prefix', 'Demographics'),
+                    ('business_phone', 'Demographics'),
+                    ('start_time', 'Time'),
+                    ('seqnumber', 'Miscellaneous'),
+                    ('address_line_2', 'Demographics'),
+                    ('address_line_3', 'Demographics'),
+                    ('service_provider', 'Core'),
+                    ('gender', 'Demographics'),
+                    ('email', 'Demographics'),
                     ('member_number', 'Identification'),
-                    ('date', 'Identification'),
-                    ('time', 'Identification'),
-                    ('entries_in_day', 'Miscellaneous'),
-                    ('age_bin', 'Demographic')]
+                    ('member_since', 'Demographics'),
+                    ('date_of_birth', 'Demographics'),
+                    ('price', 'Transactions'),
+                    ('membership_tenure', 'Demographics'),
+                    ('status', 'Demographics'),
+                    ('marital_status', 'Demographics'),
+                    ('middle_name', 'Demographics'),
+                    ('sub_total', 'Transactions'),
+                    ('nick_name', 'Demographics'),
+                    ('party_size', 'Miscellaneous'),
+                    ('table', 'Miscellaneous'),
+                    ('first_name', 'Demographics'),
+                    ('zip', 'Demographics'),
+                    ('entries_in_a_day', 'Miscellaneous'),
+                    ('reservation_type', 'Core'),
+                    ('member_type', 'Demographics'),
+                    ('check_number', 'Core'),
+                    ('billing_email', 'Demographics'),
+                    ('meal_period', 'Core'),
+                    ('event_end', 'Time'),
+                    ('fsa', 'Miscellaneous'),
+                    ('date', 'Time'),
+                    ('address_line_1', 'Demographics'),
+                    ('trainer_end', 'Time'),
+                    ('member_status', 'Demographics'),
+                    ('item_group', 'Core'),
+                    ('email_address', 'Demographics'),
+                    ('company', 'Demographics'),
+                    ('deactivation_date', 'Demographics'),
+                    ('trainer', 'Core'),
+                    ('employer', 'Core'),
+                    ('phone_number', 'Demographics'),
+                    ('billing_cycle', 'Demographics'),
+                    ('slip_rate', 'Miscellaneous'),
+                    ('trainer_start', 'Time'),
+                    ('item_name', 'Core'),
+                    ('event_number', 'Core'),
+                    ('notes', 'Miscellaneous'),
+                    ('reservation', 'Core'),
+                    ('number_of_guests', 'Core'),
+                    ('location', 'Core'),
+                    ('age', 'Demographics'),
+                    ('created_on', 'Time'),
+                    ('member_name', 'Demographics'),
+                    ('created_via', 'Miscellaneous'),
+                    ('city', 'Demographics'),
+                    ('players', 'Miscellaneous'),
+                    ('country', 'Demographics'),
+                    ('id', 'Identification'),
+                    ('end_time', 'Time'),
+                    ('activity', 'Core'),
+                    ('booked_by', 'Core'),
+                    ('cell_phone', 'Demographics'),
+                    ('primary_email', 'Demographics'),
+                    ('address_name', 'Demographics'),
+                    ('total', 'Transactions'),
+                    ('created_date', 'Time'),
+                    ('suffix', 'Demographics'),
+                    ('comments', 'Miscellaneous'),
+                    ('time', 'Time'),
+                    ('activation_date', 'Demographics'),
+                    ('class_code', 'Core'),
+                    ('state', 'Demographics')]
 tuple_assignment = [t[::-1] for t in tuple_assignment]
-df_MANSCANS.columns = pd.MultiIndex.from_tuples(tuple_assignment)
+
+for df in dfs:
+    existing_cols = df.columns
+    keys = [tup for tup in tuple_assignment if tup[1] in existing_cols]
+    df.columns = pd.MultiIndex.from_tuples(keys)
+df.columns = df.columns.droplevel(0)
 
 
 # TODO: How do you tag 123GC (Corporate or Golf Club)
