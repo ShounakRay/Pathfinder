@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 25-Feb-2021 16:02:36:365  GMT-0700
+# @Last modified time: 01-Mar-2021 12:03:41:411  GMT-0700
 # @License: [Private IP]
 
 import functools
@@ -73,6 +73,22 @@ df_MEMEBRSHIP = pd.read_csv("Data/MEMBERSHIP.csv", low_memory=False)
 df_RESERVATIONS = pd.read_csv("Data/RESERVATIONS.csv", low_memory=False)
 df_SALES = pd.read_csv("Data/SALES.csv", low_memory=False)
 dfs = [df_MANSCANS, df_SCANS, df_EVENTS, df_MEMEBRSHIP, df_RESERVATIONS, df_SALES]
+
+# MULTI-INDEX the columns for better reference
+tuple_assignment = [('member_name', 'Demographic'),
+                    ('entries_in_a_month', 'Miscellaneous'),
+                    ('notes', 'Miscellaneous'),
+                    ('class_code', 'Miscellaneous'),
+                    ('age', 'Demographic'),
+                    ('gender', 'Demographic'),
+                    ('member_number', 'Identification'),
+                    ('date', 'Identification'),
+                    ('time', 'Identification'),
+                    ('entries_in_day', 'Miscellaneous'),
+                    ('age_bin', 'Demographic')]
+tuple_assignment = [t[::-1] for t in tuple_assignment]
+df_MANSCANS.columns = pd.MultiIndex.from_tuples(tuple_assignment)
+
 
 # TODO: How do you tag 123GC (Corporate or Golf Club)
 # TODO: Test Feature engineering across all cases
