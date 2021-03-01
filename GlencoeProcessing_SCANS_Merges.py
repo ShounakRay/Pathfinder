@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 01-Mar-2021 12:03:41:411  GMT-0700
+# @Last modified time: 01-Mar-2021 13:03:70:708  GMT-0700
 # @License: [Private IP]
 
 import functools
@@ -73,6 +73,8 @@ df_MEMEBRSHIP = pd.read_csv("Data/MEMBERSHIP.csv", low_memory=False)
 df_RESERVATIONS = pd.read_csv("Data/RESERVATIONS.csv", low_memory=False)
 df_SALES = pd.read_csv("Data/SALES.csv", low_memory=False)
 dfs = [df_MANSCANS, df_SCANS, df_EVENTS, df_MEMEBRSHIP, df_RESERVATIONS, df_SALES]
+
+all_cols = set(list(chain.from_iterable([list(d.columns) for d in dfs])))
 
 # MULTI-INDEX the columns for better reference
 tuple_assignment = [('member_name', 'Demographic'),
