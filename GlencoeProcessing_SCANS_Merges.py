@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 01-Mar-2021 17:03:22:222  GMT-0700
+# @Last modified time: 01-Mar-2021 17:03:02:029  GMT-0700
 # @License: [Private IP]
 
 import functools
@@ -192,6 +192,7 @@ for df in dfs.copy():
     new_dfs.append(util_reorder_MI(df, global_order))
 for i in range(len(dfs)):
     dfs[i] = new_dfs[i]
+
 
 # TODO: How do you tag 123GC (Corporate or Golf Club)
 # TODO: Test Feature engineering across all cases
