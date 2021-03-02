@@ -3,30 +3,43 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: glencoe_s3.py
 # @Last modified by:   Ray
-# @Last modified time: 02-Mar-2021 15:03:57:577  GMT-0700
+# @Last modified time: 02-Mar-2021 16:03:60:606  GMT-0700
 # @License: [Private IP]
 
+# ENVIRONMENT:
+# > Python 3.8.6
 
 import io
 import os
+from datetime import datetime
 
 import boto3
 import pandas as pd
 import pymssql
 from cryptography.fernet import Fernet
 
-# Must "brew install freetds" to "pip3 install pymssql"
+"""########################################################################################
+################################# ONLY FOR INTERNAL USE ###################################
+########################################################################################"""
 # ENCRYPTING THE KEYS SO THE KEY ITSELF DOES NOT APPEAR IN THE CODE
 # >> IN CASE THIS FILE IS COMPROMISED DURING TRANSMISSION, OUR KEYS ARE SAFE
 # >> THE FIRST PART OF THE KEY WILL BE PROVIDED BY WHITE WHALE VIA A DIFFERENT CHANNEL
-part_1 = '123'
-part_2 = '234'
-
+total = Fernet.generate_key()
+part_1, part_2 = (total[:int(len(total) / 2)], total[int(len(total) / 2):])
+"""OUR INTERNAL KEYS: """
+print('PART 1 OF INTERNAL KEY:\n\t' + str(part_1))
+print('PART 2 OF INTERNAL KEY:\n\t' + str(part_2))
+if not os.path.exists('Keys'):
+    os.makedirs('Keys')
+print('PART 1: ' + str(part_1).replace("b'", "").replace("'", ""),
+      '\nPART 2: ' + str(part_2).replace("b'", "").replace("'", ""),
+      file=open('Keys/internal_key_' + str(datetime.now()) + '.txt', 'w'))
 # Add the two partial keys together to determine the complete key
 # >> This is the key White Whale and our Client will use to encyrpt and decrypt the respective files
 wwkey = part_1 + part_2
-key = bytes(wwkey.encode())
-f = Fernet(key)
+# Only run the line of code below of wwkey is string type and not byte type
+# wwkey = bytes(wwkey.encode())
+f = Fernet(wwkey)
 
 
 def encrypt_msg(message):
