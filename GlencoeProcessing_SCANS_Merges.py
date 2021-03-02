@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 02-Mar-2021 11:03:16:160  GMT-0700
+# @Last modified time: 02-Mar-2021 12:03:34:342  GMT-0700
 # @License: [Private IP]
 
 import functools
@@ -327,14 +327,13 @@ dfs = {'MANSCANS': df_MANSCANS,
        'SALES': df_SALES}
 
 
-# TODO: Implement new feature engineering on all datasets
 for df_name in dfs.keys():
-    dfs[df_name] = engineer_member_id(dfs.get(df_name))
+    dfs[df_name] = engineer_member_id(dfs.get(df_name)).infer_objects()
 
 # Set the MultiIndex on all the DataFrames
 dfs_MI = {}
 for df_name in dfs.keys():
-    dfs_MI[df_name] = (util_reorder_MI(util_set_MI(dfs.get(df_name).copy())))
+    dfs_MI[df_name] = (util_reorder_MI(util_set_MI(dfs.get(df_name).copy()))).infer_objects()
 
 # Basic Data Re-formatting
 df_MANSCANS['member_name'] = df_MANSCANS['member_name'].str.upper()
