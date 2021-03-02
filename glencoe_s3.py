@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: glencoe_s3.py
 # @Last modified by:   Ray
-# @Last modified time: 02-Mar-2021 12:03:90:907  GMT-0700
+# @Last modified time: 02-Mar-2021 15:03:57:577  GMT-0700
 # @License: [Private IP]
 
 
@@ -13,14 +13,17 @@ import os
 import boto3
 import pandas as pd
 import pymssql
-# ENCRYPTING THE KEYS SO THE KEY ITSELF DOES NOT APPEAR IN THE CODE
 from cryptography.fernet import Fernet
 
-# IN CASE THIS FILE IS COMPROMISED DURING TRANSMISSION, OUR KEYS ARE SAFE
-# THE FIRST PART OF THE KEY WILL BE PROVIDED BY WHITE WHALE VIA A DIFFERENT CHANNEL
-part_1 = ''
-part_2 = ''
+# Must "brew install freetds" to "pip3 install pymssql"
+# ENCRYPTING THE KEYS SO THE KEY ITSELF DOES NOT APPEAR IN THE CODE
+# >> IN CASE THIS FILE IS COMPROMISED DURING TRANSMISSION, OUR KEYS ARE SAFE
+# >> THE FIRST PART OF THE KEY WILL BE PROVIDED BY WHITE WHALE VIA A DIFFERENT CHANNEL
+part_1 = '123'
+part_2 = '234'
 
+# Add the two partial keys together to determine the complete key
+# >> This is the key White Whale and our Client will use to encyrpt and decrypt the respective files
 wwkey = part_1 + part_2
 key = bytes(wwkey.encode())
 f = Fernet(key)
