@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: extracontent.py
 # @Last modified by:   Ray
-# @Last modified time: 23-Feb-2021 15:02:80:805  GMT-0700
+# @Last modified time: 02-Mar-2021 11:03:62:626  GMT-0700
 # @License: [Private IP]
 
 
@@ -59,3 +59,40 @@
 # df_1.columns = ['Name', '']
 # len(df_1['0115101'].unique())
 # len(df_1[' AMUNDRUD,  JOHN'].unique())
+
+# <><><><><><><><>
+# [x for x in df_mids['lettered_ID'] if 'INT' in x]
+
+# <><><><><><><>
+# >> Manually input categorizations, Flip list of tuples key, and store
+# all_cols = set(list(chain.from_iterable([list(d.columns) for d in dfs])))
+# raw_tuple_assignment = []
+# for col in all_cols:
+#     raw_tuple_assignment.append((col, input(str(all_cols.index(col)/len(all_cols)) +
+#                                         ' Input Category for ' + col + ':')))
+
+# ><><><><><><>
+# >>> Testing Member Number Engineering using info from all source tables
+# Aggregate and accumulate all member numbers across all the datasets
+# store = []
+# for d in dfs.values():
+#     store.append(set(d['member_number']))
+# Reformat data to DataFrame and optionally filter to only include those that include letters (ignoring nans)
+# mids = [x for x in list(set(list(chain.from_iterable(store)))) if x == x]
+# mids = [mid for mid in mids if(type(mid) == str and any(let.isalpha() for let in mid))]
+# df_mids = pd.DataFrame(mids, columns=['lettered_ID'])
+#
+# # Determine Regex Pattern to process Family ID
+# pat_partial = '('
+# for k in group_relations.keys():
+#     pat_partial += k + '|'
+# pat = pat_partial[:-1] + ')' + r'|-[0-9]{1,2}'
+# # Apply Regex
+# df_mids['Family_ID'] = df_mids['lettered_ID'].apply(lambda x: re.sub(pat, '', x))
+# df_mids['Mem_Category_Abbrev'] = df_mids['lettered_ID'].apply(lambda x:
+#                                                               re.sub(r'[0-9]', '', x).replace('-', '').strip())
+# df_mids['Mem_Category_Type'] = df_mids.apply(lambda_mem_type, axis=1)
+# df_mids.drop('Mem_Category_Abbrev', axis=1, inplace=True)
+# df_mids['Dependent'] = df_mids['lettered_ID'].apply(lambda x: True if('-' in x) else False)
+# df_mids['Dependent_Type'] = df_mids.apply(lambda_dep_type, axis=1)
+# df_mids = df_mids.sort_values('Family_ID').reset_index(drop=True)
