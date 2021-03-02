@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 01-Mar-2021 14:03:67:674  GMT-0700
+# @Last modified time: 01-Mar-2021 15:03:72:724  GMT-0700
 # @License: [Private IP]
 
 import functools
@@ -35,6 +35,12 @@ def util_drop_level(df):
     return df
 
 
+def util_reorder_MI(df, order):
+    local_order = [lvl for lvl in order if lvl in lvl in set([tup[0] for tup in df.columns])]
+    df = df.T.reindex(local_order, level=0).T
+    return df
+
+
 def lambda_dep_type(row):
     if(row['Dependent']):
         seg = int(row['lettered_ID'].split('-')[1])
@@ -59,9 +65,6 @@ def lambda_mem_type(row, GROUP_RELATIONS=group_relations):
     else:
         return None
 
-# Counter(df_RESERVATIONS['start_time'].isnull())
-# Counter(df_SALES['start_time'].isnull())
-# df_MEMEBRSHIP['activation_date']
 
 # TODO: Data Requirement
 # Do ID's show rough order in the membership data? But we still need actual
@@ -176,16 +179,24 @@ tuple_assignment = [('prefix', 'Demographics'),
                     ('class_code', 'Core'),
                     ('state', 'Demographics')]
 tuple_assignment = [t[::-1] for t in tuple_assignment]
+global_order = ['Identification', 'Time', 'Demographics', 'Core', 'Transactions', 'Preferences', 'Miscellaneous']
 
+# Counter([tup[0] for tup in tuple_assignment])
+
+# Set the MultiIndex on all the DataFrames
+new_dfs = []
 for df in dfs:
     existing_cols = df.columns
     keys = [tup for tup in tuple_assignment if tup[1] in existing_cols]
     df.columns = pd.MultiIndex.from_tuples(keys)
-df.columns = df.columns.droplevel(0)
-
+    df = util_reorder_MI(df, global_order)
+    new_dfs.append(df)
+dfs = new_dfs.copy()
+new_dfs.clear()
 
 # TODO: How do you tag 123GC (Corporate or Golf Club)
 # TODO: Test Feature engineering across all cases
+
 
 # Aggregate and accumulate all member numbers across all the datasets
 store = []
