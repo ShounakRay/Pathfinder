@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: glencoe_s3.py
 # @Last modified by:   Ray
-# @Last modified time: 03-Mar-2021 11:03:21:211  GMT-0700
+# @Last modified time: 03-Mar-2021 12:03:77:777  GMT-0700
 # @License: [Private IP]
 
 # ENVIRONMENT:
@@ -14,6 +14,7 @@ import os
 from datetime import datetime
 
 import boto3
+import mysql.connector
 import pandas as pd
 import pymssql
 from cryptography.fernet import Fernet
