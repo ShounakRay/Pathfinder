@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 02-Mar-2021 17:03:06:064  GMT-0700
+# @Last modified time: 03-Mar-2021 11:03:65:651  GMT-0700
 # @License: [Private IP]
 
 import functools
@@ -312,7 +312,7 @@ def engineer_member_id(df, mnum_col='member_number', GROUP_RELATIONS=group_relat
 
 
 # TODO: Integrate Bryce's Source Table Code w/ S3 Pull
-# Import all the base tables/sources of data
+# Import all the base tables/sources of data, and then store in a dict for reference purposes
 df_MANSCANS = pd.read_csv("Data/MANUAL_SCANS.csv", low_memory=False)
 df_SCANS = pd.read_csv("Data/SCANS.csv", low_memory=False)
 df_EVENTS = pd.read_csv("Data/EVENTS.csv", low_memory=False)

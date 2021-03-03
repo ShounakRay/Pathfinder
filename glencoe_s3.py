@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: glencoe_s3.py
 # @Last modified by:   Ray
-# @Last modified time: 02-Mar-2021 17:03:42:429  GMT-0700
+# @Last modified time: 03-Mar-2021 11:03:21:211  GMT-0700
 # @License: [Private IP]
 
 # ENVIRONMENT:
@@ -21,48 +21,68 @@ from cryptography.fernet import Fernet
 """########################################################################################
 ################################# ONLY FOR INTERNAL USE ###################################
 ########################################################################################"""
+
+
+def generate_internal_key(prnt_scr=True, prnt_file=True):
+    """This generates the key White Whale and our Client will use to encyrpt and decrypt the respective files.
+
+    Parameters
+    ----------
+    prnt_scr : bool
+        Whether the two parts of the keys should be printed to the console.
+    prnt_file : bool
+        Whether the two parts of the keys should be printed to a .txt file.
+
+    Returns
+    -------
+    cryptography.fernet.Fernet
+        An encrypted Fernet object based on the generated key.
+
+    """
+    total = Fernet.generate_key()
+    now = datetime.now()
+    part_1, part_2 = (total[:int(len(total) / 2)], total[int(len(total) / 2):])
+
+    if(prnt_scr):
+        print('PART 1 OF INTERNAL KEY:\n\t' + part_1.decode("utf-8"),
+              '\nPART 2 OF INTERNAL KEY:\n\t' + part_2.decode("utf-8"))
+
+    if(prnt_file):
+        if not os.path.exists('Keys'):
+            os.makedirs('Keys')
+        print('TIME GENERATED: ' + str(now.strftime("%B %d, %Y\t%H:%M:%S")),
+              '\nPART 1: ' + part_1.decode("utf-8"),
+              '\nPART 2: ' + part_2.decode("utf-8"),
+              file=open('Keys/internal_key_' + str(now) + '.txt', 'w'))
+
+    wwkey = part_1 + part_2 if(part_1 + part_2 == total) else print('BAD ERROR')
+    f = Fernet(wwkey)
+
+    return f
 # ENCRYPTING THE KEYS SO THE KEY ITSELF DOES NOT APPEAR IN THE CODE
 # >> IN CASE THIS FILE IS COMPROMISED DURING TRANSMISSION, OUR KEYS ARE SAFE
 # >> THE FIRST PART OF THE KEY WILL BE PROVIDED BY WHITE WHALE VIA A DIFFERENT CHANNEL
-total = Fernet.generate_key()
-part_1, part_2 = (total[:int(len(total) / 2)], total[int(len(total) / 2):])
-"""OUR INTERNAL KEYS: """
-print('PART 1 OF INTERNAL KEY:\n\t' + str(part_1))
-print('PART 2 OF INTERNAL KEY:\n\t' + str(part_2))
-if not os.path.exists('Keys'):
-    os.makedirs('Keys')
-print('PART 1: ' + str(part_1).replace("b'", "").replace("'", ""),
-      '\nPART 2: ' + str(part_2).replace("b'", "").replace("'", ""),
-      file=open('Keys/internal_key_' + str(datetime.now()) + '.txt', 'w'))
-# Add the two partial keys together to determine the complete key
-# >> This is the key White Whale and our Client will use to encyrpt and decrypt the respective files
-wwkey = part_1 + part_2
-# Only run the line of code below of wwkey is string type and not byte type
-# wwkey = bytes(wwkey.encode())
-f = Fernet(wwkey)
 
 
-def encrypt_msg(message):
+f = generate_internal_key()
+
+
+def encrypt_msg(message, f=f):
     encrypted = f.encrypt(bytes(message.encode()))
     return encrypted
 
 
-def decrypt_msg(encrypted_message):
+def decrypt_msg(encrypted_message, f=f):
     decrypted = f.decrypt(bytes(encrypted_message))
     return decrypted.decode()
-
-
-decrypt_msg()
 
 
 class DataStream():
     def __init__(self, bucket, access_key, secret_key):
         self.bucket = bucket
-        self.client = boto3.client(
-            's3',
-            aws_access_key_id=str(decrypt_msg(access_key)),
-            aws_secret_access_key=str(decrypt_msg(secret_key)),
-        )
+        self.client = boto3.client('s3',
+                                   aws_access_key_id=str(decrypt_msg(access_key)),
+                                   aws_secret_access_key=str(decrypt_msg(secret_key)))
 
     def get_all_files(self, folder=''):
         paginator = self.client.get_paginator('list_objects')
@@ -73,7 +93,7 @@ class DataStream():
                 for obj in page['Contents']:
                     items.append(obj['Key'])
             return items
-        except Exception as e:
+        except Exception:
             return []
 
     def read_s3(self, path, header='infer', sheet_name=0):
@@ -107,10 +127,14 @@ class DataStream():
 #####################################################################
 # SET UP
 
+# Access Key: Retrieved from S3
 access_key = bytes(''.encode())
+# Secret Key: Retrieved from S3
 secret_key = bytes(''.encode())
+# S3 Bucket Name: Retrieved from S3
 bucket = ""
 
+# Construct the Datastream
 DS = DataStream(bucket, access_key, secret_key)
 
 # decrypt_msg(access_key)
