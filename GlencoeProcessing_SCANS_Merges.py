@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 03-Mar-2021 12:03:04:049  GMT-0700
+# @Last modified time: 05-Mar-2021 10:03:55:553  GMT-0700
 # @License: [Private IP]
 
 import functools
@@ -310,8 +310,8 @@ def engineer_member_id(df, mnum_col='member_number', GROUP_RELATIONS=group_relat
 
 # TODO: Data Requirement
 
-
 # TODO: Integrate Bryce's Source Table Code w/ S3 Pull
+
 # Import all the base tables/sources of data, and then store in a dict for reference purposes
 df_MANSCANS = pd.read_csv("Data/MANUAL_SCANS.csv", low_memory=False)
 df_SCANS = pd.read_csv("Data/SCANS.csv", low_memory=False)
@@ -326,36 +326,17 @@ dfs = {'MANSCANS': df_MANSCANS,
        'RESERVATIONS': df_RESERVATIONS,
        'SALES': df_SALES}
 
-
+# Feature Engineer the Member IDs
 for df_name in dfs.keys():
     dfs[df_name] = engineer_member_id(dfs.get(df_name)).infer_objects()
 
-# Set the MultiIndex on all the DataFrames
+# Set the MultiIndex on all the DataFrames and format aesthetically
 dfs_MI = {}
 for df_name in dfs.keys():
-    dfs_MI[df_name] = (util_reorder_MI(util_set_MI(dfs.get(df_name).copy()))).infer_objects()
+    dfs_MI[df_name] = util_reorder_MI(util_set_MI(dfs.get(df_name))).infer_objects()
 
-# Basic Data Re-formatting
-df_MANSCANS['member_name'] = df_MANSCANS['member_name'].str.upper()
-df_SCANS = df_SCANS[['card_holder', 'time', 'date', 'location', 'member_number']]
-df_SCANS['card_holder'] = df_SCANS['card_holder'].str.upper()
-df_SCANS['location'] = df_SCANS['location'].str.upper()
-# STRIP ALL STRINGS
-str_list = ['card_holder', 'location']
-for x in str_list:
-    df_SCANS[x] = [str(i).replace('  ', ' ') for i in list(df_SCANS[x])]
-
-# >>> DF_SALES W/ ORDER PROCESSING
-# Compare overlap across scans and sales datasets
-for mem_name, mem_num in list(zip(df_SALES['member_name'], df_SALES['member_number'])):
-    matches = df_SCANS[(df_SCANS['card_holder'] == mem_name) | (df_SCANS['member_number'] == mem_num)]
-
-# df_SCANS['card_holder'].isin(['LITTLE, DOROTHY']).unique()
-
-# len(set(list(df_SCANS['card_holder']) + list(df_MANSCANS['member_name'])).intersection(df_SALES['member_name']))
-# len(set(list(df_SCANS['card_holder']) + list(df_MANSCANS['member_name'])))
-# len(set(df_SALES['member_name']))
 #
-# len(set(list(df_SCANS['member_number']) + list(df_MANSCANS['member_number'])).intersection(df_SALES['member_number']))
-# len(set(list(df_SCANS['member_number']) + list(df_MANSCANS['member_number'])))
-# len(set(df_SALES['member_number']))
+
+#
+
+#

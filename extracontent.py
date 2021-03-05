@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: extracontent.py
 # @Last modified by:   Ray
-# @Last modified time: 02-Mar-2021 11:03:62:626  GMT-0700
+# @Last modified time: 05-Mar-2021 09:03:83:839  GMT-0700
 # @License: [Private IP]
 
 
@@ -96,3 +96,29 @@
 # df_mids['Dependent'] = df_mids['lettered_ID'].apply(lambda x: True if('-' in x) else False)
 # df_mids['Dependent_Type'] = df_mids.apply(lambda_dep_type, axis=1)
 # df_mids = df_mids.sort_values('Family_ID').reset_index(drop=True)
+
+
+# # Basic Data Re-formatting
+# df_MANSCANS['member_name'] = df_MANSCANS['member_name'].str.upper()
+# df_SCANS = df_SCANS[['card_holder', 'time', 'date', 'location', 'member_number']]
+# df_SCANS['card_holder'] = df_SCANS['card_holder'].str.upper()
+# df_SCANS['location'] = df_SCANS['location'].str.upper()
+# # STRIP ALL STRINGS
+# str_list = ['card_holder', 'location']
+# for x in str_list:
+#     df_SCANS[x] = [str(i).replace('  ', ' ') for i in list(df_SCANS[x])]
+#
+# # >>> DF_SALES W/ ORDER PROCESSING
+# # Compare overlap across scans and sales datasets
+# for mem_name, mem_num in list(zip(df_SALES['member_name'], df_SALES['member_number'])):
+#     matches = df_SCANS[(df_SCANS['card_holder'] == mem_name) | (df_SCANS['member_number'] == mem_num)]
+
+# df_SCANS['card_holder'].isin(['LITTLE, DOROTHY']).unique()
+
+# len(set(list(df_SCANS['card_holder']) + list(df_MANSCANS['member_name'])).intersection(df_SALES['member_name']))
+# len(set(list(df_SCANS['card_holder']) + list(df_MANSCANS['member_name'])))
+# len(set(df_SALES['member_name']))
+#
+# len(set(list(df_SCANS['member_number']) + list(df_MANSCANS['member_number'])).intersection(df_SALES['member_number']))
+# len(set(list(df_SCANS['member_number']) + list(df_MANSCANS['member_number'])))
+# len(set(df_SALES['member_number']))
