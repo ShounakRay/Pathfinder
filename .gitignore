@@ -7,7 +7,7 @@
 .DS_Store
 
 # Ignore all sensitive keys
-Keys
+S3Keys
 *.txt
 ReferencePY
 

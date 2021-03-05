@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: glencoe_s3.py
 # @Last modified by:   Ray
-# @Last modified time: 05-Mar-2021 14:03:57:570  GMT-0700
+# @Last modified time: 05-Mar-2021 15:03:76:763  GMT-0700
 # @License: [Private IP]
 
 # ENVIRONMENT:
@@ -48,12 +48,12 @@ def generate_internal_key(prnt_scr=True, prnt_file=True):
               '\nPART 2 OF INTERNAL KEY:\n\t' + part_2.decode("utf-8"))
 
     if(prnt_file):
-        if not os.path.exists('Keys'):
-            os.makedirs('Keys')
+        if not os.path.exists('S3Keys'):
+            os.makedirs('S3Keys')
         print('TIME GENERATED: ' + str(now.strftime("%B %d, %Y\t%H:%M:%S")),
               '\nPART 1: ' + part_1.decode("utf-8"),
               '\nPART 2: ' + part_2.decode("utf-8"),
-              file=open('Keys/internal_key_' + str(now) + '.txt', 'w'))
+              file=open('S3Keys/internal_key_' + str(now) + '.txt', 'w'))
 
     wwkey = part_1 + part_2 if(part_1 + part_2 == total) else print('BAD ERROR')
     f = Fernet(wwkey)
