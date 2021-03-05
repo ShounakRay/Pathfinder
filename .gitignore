@@ -9,6 +9,8 @@
 # Ignore all sensitive keys
 Keys
 *.txt
+ReferencePY
+
 
 # Ignore all graphs
 EXT-STRAT

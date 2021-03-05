@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: extracontent.py
 # @Last modified by:   Ray
-# @Last modified time: 05-Mar-2021 09:03:83:839  GMT-0700
+# @Last modified time: 05-Mar-2021 11:03:71:718  GMT-0700
 # @License: [Private IP]
 
 
@@ -122,3 +122,13 @@
 # len(set(list(df_SCANS['member_number']) + list(df_MANSCANS['member_number'])).intersection(df_SALES['member_number']))
 # len(set(list(df_SCANS['member_number']) + list(df_MANSCANS['member_number'])))
 # len(set(df_SALES['member_number']))
+
+# %timeit functest
+# %timeit functest2
+#
+#
+# def functest2():
+#     out = _github('https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}'.format(owner=owner,
+#                                                                                             repo=repo,
+#                                                                                             branch=branch,
+#                                                                                             path=path))
