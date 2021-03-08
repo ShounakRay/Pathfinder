@@ -3,12 +3,14 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: run_remote.py
 # @Last modified by:   Ray
-# @Last modified time: 05-Mar-2021 15:03:62:626  GMT-0700
+# @Last modified time: 08-Mar-2021 09:03:32:327  GMT-0700
 # @License: [Private IP]
 
 import os
+import shutil
 import subprocess
 import sys
+import time
 
 import requests
 
@@ -30,12 +32,18 @@ import requests
 #                     |
 #                     -- **                                         --> Content inside the cache folder
 
+_ = """
+#######################################################################################################################
+##########################################   AUTHENTICATION AND LOCATION   ############################################
+#######################################################################################################################
+"""
+
 # Define Github authentication credentials and file retrieval info to complete a request
 OWNER = 'ShounakRay'
-REPO = 'AnomalyDetection'
+REPO = 'AutoAnalytics'
 BRANCH = 'main'
 REPO_TYPE = 'private'
-FILE_PATH = 'Anomaly_Detection_PKG.py'
+FILE_PATH = 'generic_data_prep.py'
 REM_TO_LOC_PATH = 'ReferencePY'
 GITHUB_TOKEN = token = open('Access Tokens/{owner}_TOKEN.txt'.format(owner=OWNER)).read().strip()
 
@@ -99,26 +107,73 @@ def cmd_runprint(command: str, prnt_file: bool = True, prnt_scrn: bool = False, 
         return exec_output
 
 
-# Retrieve user's file from specific repository, given authentication token
-out = _github('https://raw.githubusercontent.com/{OWNER}/{REPO}/{BRANCH}/{FILE_PATH}'.format(OWNER=OWNER,
-                                                                                             REPO=REPO,
-                                                                                             BRANCH=BRANCH,
-                                                                                             FILE_PATH=FILE_PATH),
-              mode=REPO_TYPE)
+def pip_install_confirm(mod: str, ver: bool = False):
+    """Install a package using pip and confirm that it was installed.
 
-print('STATUS: Request Completed.')
+    Parameters
+    ----------
+    mod : str
+        The name of the module to be installed.
+    ver : bool
+        Whether the output of command installing the module should be printed to the screen
+
+    Returns
+    -------
+    None
+        Nothing. Only a command is executed and an output is – potentially – printed.
+
+    """
+
+    # To ensure consistency between requirement.txt files
+    mod = mod.replace('_', '-')
+    if(mod not in sys.modules):
+        output = cmd_runprint('pip3 install {module}'.format(module=mod), prnt_file=False, ret=True)
+        if(ver):
+            print(output)
+        pip_installed = {mod.split("==")[0]: mod.split("==")[1] for mod in cmd_runprint('pip freeze',
+                                                                                        ret=True).split()}
+        if(mod not in pip_installed):
+            print("WARNING: {module} not installed properly by pip.".format(module=mod))
+
+
+_ = """
+#######################################################################################################################
+###################################################   RETRIEVAL   #####################################################
+#######################################################################################################################
+"""
+# Retrieve user's file from specific repository, given authentication token
+# out = _github('https://api.github.com/{OWNER}/{REPO}/{BRANCH}/{FILE_PATH}'.format(OWNER=OWNER,
+#                                                                                   REPO=REPO,
+#                                                                                   BRANCH=BRANCH,
+#                                                                                   FILE_PATH=FILE_PATH),
+#               mode=REPO_TYPE)
+
+# send a request
+out = requests.get('https://api.github.com/repos/{OWNER}/{REPO}/contents/{FILE_PATH}'.format(OWNER=OWNER,
+                                                                                             REPO=REPO,
+                                                                                             FILE_PATH=FILE_PATH),
+                   headers={'accept': 'application/vnd.github.v3.raw',
+                            'authorization': 'token {}'.format(token)})
+
+print('STATUS: Request Completed.\n')
 
 # Alert User w/ Status Code, request success or failure (waterfall)
 if(out.status_code != 200):
     raise Exception('ERROR: Status Code: ' + str(out.status_code) +
                     '\nUnable to retrieve {FPATH}, check parameters!'.format(FPATH=FILE_PATH))
 else:
-    print('STATUS: {FPATH} Successfully Retrieved!'.format(FPATH=FILE_PATH))
+    print('STATUS: {FPATH} Successfully Retrieved!\n'.format(FPATH=FILE_PATH))
 
 # Check if "remote to local" storage directory exists and save python file
 if not os.path.exists(REM_TO_LOC_PATH):
     os.makedirs(REM_TO_LOC_PATH)
 print(out.text, file=open(REM_TO_LOC_PATH + '/' + 'remote_' + FILE_PATH, 'w'))
+
+_ = """
+#######################################################################################################################
+############################################   IDENTIFYING DEPENDENCIES   #############################################
+#######################################################################################################################
+"""
 
 # Add specific folder to system path (to ensure that requirements.txt searches everywhere for dependencies)
 sys.path.append(os.getcwd() + '/' + REM_TO_LOC_PATH)
@@ -127,28 +182,20 @@ sys.path.append(os.getcwd() + '/' + REM_TO_LOC_PATH)
 # NOTE: pipreqs is required to generate requirements.txt
 _modules = ['pipreqs']
 for mod in _modules:
-    if(mod not in sys.modules):
-        cmd_runprint('pip3 install {module}'.format(module=mod), prnt_file=False)
-        pip_installed = {mod.split("==")[0]: mod.split("==")[1] for mod in cmd_runprint('pip freeze',
-                                                                                        ret=True).split()}
-        if(mod not in pip_installed):
-            raise ValueError('ERROR: {module} not installed properly by pip'.format(module=mod))
+    pip_install_confirm(mod, ver=False)
 
 # Generate requirements.txt file
-cmd_runprint('pipreqs')
+cmd_runprint('pipreqs --force')
 
 
-def pip_install_confirm(mod: str):
-    if(mod not in sys.modules):
-        cmd_runprint('pip3 install {module}'.format(module=mod), prnt_file=False)
-        pip_installed = {mod.split("==")[0]: mod.split("==")[1] for mod in cmd_runprint('pip freeze',
-                                                                                        ret=True).split()}
-        if(mod not in pip_installed):
-            raise ValueError('ERROR: {module} not installed properly by pip'.format(module=mod))
-
+_ = """
+#######################################################################################################################
+########################################   INSTALLING MISSING DEPENDENCIES   ##########################################
+#######################################################################################################################
+"""
 
 # Determine modules already installed via pip
-installed_mods = {mod.split("==")[0]: mod.split("==")[1] for mod in cmd_runprint('pip freeze', ret=True).split()}
+installed_mods = {mod.split("==")[0]: mod.split("==")[1] for mod in cmd_runprint('pip3 freeze', ret=True).split()}
 # Determine modules which need to be installed by pip
 required_mods = {mod.split("==")[0]: mod.split("==")[1] for mod in open('requirements.txt').read().split()}
 
@@ -160,12 +207,27 @@ for r_mod in required_mods:
     else:  # Required module not installed, install it
         print('> STATUS: {module} not installed. Version {version} required.'.format(module=r_mod,
                                                                                      version=required_mods.get(r_mod)))
-        cmd_runprint('pip3 install {module}'.format(module=r_mod))
+        pip_install_confirm(r_mod, ver=False)
         print('STATUS: {module} installed successfully.'.format(module=r_mod))
 
+print('\nSTATUS: Imported and Checked All Requirements.')
+_ = """
+#######################################################################################################################
+#########################################   IMPORTING FILE.PY IN QUESTION   ###########################################
+#######################################################################################################################
+"""
 # Import the necessary package
 # NOTE: Exec statement is used since import statement should be at the top of the file (PEP)
 exec('from remote_{FPATH} import *'.format(FPATH=FILE_PATH.replace('.py', '')))
+
+papa_johns(pd.DataFrame([1, 2, 3]))
+
+time.sleep(1)
+
+shutil.rmtree(REM_TO_LOC_PATH)
+os.remove('remote_shell_output.txt')
+os.remove('requirements.txt')
+
 
 # EOF
 
