@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: run_remote.py
 # @Last modified by:   Ray
-# @Last modified time: 08-Mar-2021 09:03:32:327  GMT-0700
+# @Last modified time: 08-Mar-2021 13:03:95:958  GMT-0700
 # @License: [Private IP]
 
 import os
@@ -20,7 +20,7 @@ import requests
 #               –– Access Tokens                                    --> Contains access tokens for a specific owner(s)
 #                  |
 #                  -- {OwnerName}_TOKEN.txt                         --> The text file only with the access token
-#               -- __init__.py                                      --> Indicates that the same_level Python File
+#               -- __init__.py                                      --> Indicates that the .py File is a package
 #               -- {run_remote.py}                                  --> This interfacing
 # GENERATED:    -- requirements.txt                                 --> The generated requirement for specific .pys
 #               -- remote_shell_output.txt                          --> Used for debugging, cmd line output
