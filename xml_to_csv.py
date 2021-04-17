@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: xml_to_csv.py
 # @Last modified by:   Ray
-# @Last modified time: 06-Apr-2021 13:04:09:091  GMT-0600
+# @Last modified time: 16-Apr-2021 11:04:03:039  GMT-0600
 # @License: [Private IP]
 
 # CONVERSION RUN-TIME: 3.5 SECONDS (EXCLUDING OPTIONAL DATETIME TYPE CHECKS)
@@ -54,8 +54,6 @@ df.to_csv('Data/Check_HighRes.csv')
 # Feature Engineering
 df['Check_Open_Duration'] = (df['Check_Close_Time'].apply(t_s) - df['Check_Open_Time'].apply(t_s)) / 60.0
 
-# _temp = df[(df['Check_Open_Duration'] < 0) & (df['Check_Close_Time'].apply(t_s) != 0)]
-
 # Visualizations (Check Times)
 if __name__ == '__main__':
     fig, ax = plt.subplots(figsize=(15, 15))
@@ -100,3 +98,24 @@ if __name__ == '__main__':
     sns.boxplot(time_freq.index.weekofyear, time_freq, ax=ax[1], order=time_freq.index.weekofyear.unique())
     ax[2].set_title('Check Activity in Given Data')
     ax[2].bar(_time, _freq)
+
+# """""""""""""""WHITEWHALE.CSV «» FILE 2 CHECK"""""""""""""""""""""
+# new_df = pd.read_csv('Data/whitewhale.csv', sep='\t').infer_objects()
+# no_duplicate_df = pd.concat([df,      # .drop('Check_Number', 1),
+#                              new_df]  # .drop('Check Number', 1)]
+#                             ).drop_duplicates(keep=False)
+#
+# overlaped_rows = pd.merge(df, new_df, on=[c for c in df if c is not 'Check_Number'])
+#
+# len(new_df) / len(df)
+#
+# # This should evaluate to True if there are no duplicates
+# len(no_duplicate_df) == len(new_df) + len(df)
+#
+# # These comparisons should evaluate to True. Check Number serves as the canonical "id" column.
+# df['Check_Number'].nunique() == len(df)
+# new_df['Check Number'].nunique() == len(new_df)
+
+#
+
+#
