@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: GlencoeModeling_SALES_AffinityNet.py
 # @Last modified by:   Ray
-# @Last modified time: 23-Feb-2021 16:02:64:642  GMT-0700
+# @Last modified time: 18-Jun-2021 14:06:35:354  GMT-0600
 # @License: [Private IP]
 
 # TODO: Review Bryce's Code
@@ -89,7 +89,7 @@ top_CONST = [100, 75, 50, 25, 10, 0]
 # strat_class = ['service_provider', 'item_group', 'service_provider', 'status']  # class for color stratification
 buttons = False                 # clustering options for the graph
 groups_attribute = True         # specify group for each node for auto-coloring
-groups_option = True           # Default coloring already takes place, extra clustering functions are absent/inactive
+groups_option = True            # Default coloring already takes place, extra clustering functions are absent/inactive
 physics_option = True           # specify physics for graph motion
 node_labels = True              # specify labels for each node
 manipulation_option = True      # specify manipulation values
@@ -104,9 +104,9 @@ VIS_parameters = [buttons, groups_attribute, groups_option, physics_option, node
 VIS_location = '/Users/Ray/Documents/Python/Glencoe/'
 OPEN_TAB = False                 # Open page in chrome?
 
-
 edge_class = ['service_provider']
 strat_class = ['item_group']
+
 _ = """
 #######################################################################################################################
 ################################################## DATA PROCESSING ####################################################
@@ -132,7 +132,6 @@ df_SALES['service_provider'] = df_SALES['service_provider'].str.upper()
 df_SALES['date'] = pd.to_datetime(df_SALES['date'])
 df_SALES.sort_values(by='date', inplace=True)
 df_SALES = df_SALES.reset_index(inplace=False).drop('index', axis=1, inplace=False)
-
 
 _ = """
 #######################################################################################################################

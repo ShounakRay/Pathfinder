@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: xml_to_csv.py
 # @Last modified by:   Ray
-# @Last modified time: 16-Apr-2021 11:04:03:039  GMT-0600
+# @Last modified time: 17-Jun-2021 11:06:52:526  GMT-0600
 # @License: [Private IP]
 
 # CONVERSION RUN-TIME: 3.5 SECONDS (EXCLUDING OPTIONAL DATETIME TYPE CHECKS)
@@ -19,6 +19,13 @@ import pandas as pd
 
 def t_s(t):
     return (t.hour * 60 + t.minute) * 60
+
+
+_ = """
+#######################################################################################################################
+###################################################   XML PARSING   ###################################################
+#######################################################################################################################
+"""
 
 
 # Import XML File and extract Relevant Lines
@@ -53,6 +60,31 @@ df.to_csv('Data/Check_HighRes.csv')
 
 # Feature Engineering
 df['Check_Open_Duration'] = (df['Check_Close_Time'].apply(t_s) - df['Check_Open_Time'].apply(t_s)) / 60.0
+
+df.set_index('Check_Creation_Date')['Check_Number'].plot()
+
+_ = """
+#######################################################################################################################
+#################################################   S3 DATA PARSING   #################################################
+#######################################################################################################################
+"""
+
+df_s3 = pd.read_csv('Data/checks.csv').reset_index()
+df_s3.columns = [c.replace(' ', '_') for c in df_s3.columns if c != 'index'] + ['last_temp']
+df_s3['Check_Server'] = df_s3['Check_Server'] + ' ' + df_s3['last_temp']
+df_s3 = df_s3.drop('last_temp', axis=1).infer_objects()
+
+df_s3.set_index('Check_Creation_Date')['Check_Number'].plot()
+
+nan_values = df_s3[~df_s3.index.isin(df_s3.dropna(subset=['Check_Open_Time', 'Check_Close_Time']).index)]
+nan_values.head(30)
+
+_ = """
+#######################################################################################################################
+#################################################   XML VISUALIZATION   #################################################
+#######################################################################################################################
+"""
+
 
 # Visualizations (Check Times)
 if __name__ == '__main__':
