@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: core_execution.py
 # @Last modified by:   Ray
-# @Last modified time: 23-Jun-2021 13:06:69:695  GMT-0600
+# @Last modified time: 23-Jun-2021 15:06:60:608  GMT-0600
 # @License: [Private IP]
 
 import math
@@ -234,6 +234,11 @@ _ = """
 #####################################   MODULE 3 – TIME/ACTIVTIY CONSIDERATION   ######################################
 #######################################################################################################################
 """
+start_date = 'SOME_DATE_1'
+end_date = 'SOME_DATE_2'
+holidays = True
+weekdays = True
+repeating = ['Monday', 'Tuesday', 'Friday']
 
 
 _ = """
@@ -245,10 +250,24 @@ _ = """
 # Counter(checks_df['Check_Open_Time'] == checks_df['Check_Close_Time'])
 # TODO: Given start and end times per day, determine location path per member number
 
-for key, df in checks_df.groupby(['Member_Number', 'Check_Creation_Date']):
-    subset_df = df[['Open_On_Terminal', 'Close_On_Terminal']]
+dict_repl = {'Open_On_Terminal': 'to',
+             'Close_On_Terminal': 'from',
+             'Check_Open_Time': 'open_time',
+             'Check_Close_Time': 'close_time'}
 
-Counter(checks_df['Open_On_Terminal'] == checks_df['Close_On_Terminal'])
+storage = checks_df.rename(columns=dict_repl).groupby(['Member_Number',
+                                                       'Check_Creation_Date']
+                                                      )[['to',
+                                                         'from',
+                                                         'open_time',
+                                                         'close_time']].apply(dict).apply(lambda d: {k: v.to_list()
+                                                                                                     for k, v in
+                                                                                                     d.items()})
+
+c = 0
+for key, data in storage.items():
+    c += 1
+
 
 _ = """
 #######################################################################################################################
