@@ -3,11 +3,12 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: core_execution.py
 # @Last modified by:   Ray
-# @Last modified time: 22-Jun-2021 13:06:08:082  GMT-0600
+# @Last modified time: 23-Jun-2021 13:06:69:695  GMT-0600
 # @License: [Private IP]
 
 import math
 import re
+from collections import Counter
 from datetime import datetime
 
 import numpy as np
@@ -158,7 +159,16 @@ def engineer_member_data(df, mnum_col='member_number', GROUP_RELATIONS=group_rel
     df['age_bin'] = df['age'].apply(lambda age: [age_class for age_class in age_classes
                                                  if age_class[0] <= age <= age_class[1] + 1])
     df['age_bin'] = df['age_bin'].apply(lambda i: None if not (type(i) == list and len(i) == 1) else str(i[0]))
+
     df.loc[df[df['gender'] != df['gender']].index, 'gender'] = 'UNKNOWN'
+
+    for phn_col in ['home_phone', 'business_phone', 'cell_phone']:
+        df[phn_col] = df[phn_col].apply(lambda x: str(x))
+
+    # QUESTION What does a `marital status` of 0 mean?
+    # QUESTION What does nan `marital_status` value mean?
+    # QUESTION What does nan `billing cycle` mean? Forgot to record or defaults to something?
+    # QUESTION What does nan `source` value mean?
 
     # NOTE: Only dropping these next columns since they're consistently empty
     final_drop += ['salutation_prefix', 'deactivation_date', 'card_template', 'slip_rate',  'address_name', 'company']
@@ -184,6 +194,12 @@ def checks_formatting(df):
     df['Check_Server'] = df['Check_Server'] + ' ' + df['last_temp']
     df.drop('last_temp', axis=1, inplace=True)
 
+    # for col in ['Check_Creation_Date']:
+    #     df[col] = pd.to_datetime(df[col])
+    #
+    # for col in ['Check_Open_Time', 'Check_Close_Time']:
+    #     df[col] = df[col].apply(lambda x: datetime.strptime(x, '%H:%M:%S').time() if x == x else np.nan)
+
     return df   # Not required since all operations are inplace
 
 
@@ -200,11 +216,6 @@ _ = """
 #######################################################################################################################
 """
 member_df = engineer_member_data(pd.read_csv('Data/MEMBERSHIP.csv')).infer_objects()
-list(member_df)
-member_df['marital_status'].unique()
-member_df[member_df['marital_status'] == '0']
-
-# QUESTION What does a marital status of 0 mean?
 
 _ = """
 #######################################################################################################################
@@ -214,6 +225,9 @@ _ = """
 # TEMP ingestion -> Should ultimately be a different dataset
 checks_df = checks_formatting(pd.read_csv('Data/checks.csv')).infer_objects()
 
+sprov_catalog = set(list(checks_df['Open_On_Terminal'].unique()) + list(checks_df['Close_On_Terminal'].unique()))
+serve_catalog = set(checks_df['Check_Server'])
+incomplete_linkage_catalog = checks_df.set_index('Open_On_Terminal')['Check_Server'].to_dict()
 
 _ = """
 #######################################################################################################################
@@ -221,11 +235,20 @@ _ = """
 #######################################################################################################################
 """
 
+
 _ = """
 #######################################################################################################################
 #########################################   APPLICATION 1 – APPLY FILTERING   #########################################
 #######################################################################################################################
 """
+# checks_df[checks_df['Member_Number'] == '5576'].groupby('Check_Creation_Date')['Check_Server'].count()
+# Counter(checks_df['Check_Open_Time'] == checks_df['Check_Close_Time'])
+# TODO: Given start and end times per day, determine location path per member number
+
+for key, df in checks_df.groupby(['Member_Number', 'Check_Creation_Date']):
+    subset_df = df[['Open_On_Terminal', 'Close_On_Terminal']]
+
+Counter(checks_df['Open_On_Terminal'] == checks_df['Close_On_Terminal'])
 
 _ = """
 #######################################################################################################################

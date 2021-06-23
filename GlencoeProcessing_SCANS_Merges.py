@@ -3,19 +3,22 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 05-Mar-2021 10:03:55:553  GMT-0700
+# @Last modified time: 22-Jun-2021 17:06:97:971  GMT-0600
 # @License: [Private IP]
 
 import functools
 import math
 import re
+from collections import Counter
+from datetime import datetime
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 # from collections import Counter
 # from itertools import chain
-
+pd.set_option('display.max_columns', None)
 
 # Full form of abbreviations found in member_number (constant).
 group_relations = {'GC': 'Golf Club',
@@ -313,27 +316,58 @@ def engineer_member_id(df, mnum_col='member_number', GROUP_RELATIONS=group_relat
 # TODO: Integrate Bryce's Source Table Code w/ S3 Pull
 
 # Import all the base tables/sources of data, and then store in a dict for reference purposes
-df_MANSCANS = pd.read_csv("Data/MANUAL_SCANS.csv", low_memory=False)
-df_SCANS = pd.read_csv("Data/SCANS.csv", low_memory=False)
+# df_MANSCANS = pd.read_csv("Data/MANUAL_SCANS.csv", low_memory=False)
+# df_SCANS = pd.read_csv("Data/SCANS.csv", low_memory=False)
 df_EVENTS = pd.read_csv("Data/EVENTS.csv", low_memory=False)
 df_MEMEBRSHIP = pd.read_csv("Data/MEMBERSHIP.csv", low_memory=False)
 df_RESERVATIONS = pd.read_csv("Data/RESERVATIONS.csv", low_memory=False)
 df_SALES = pd.read_csv("Data/SALES.csv", low_memory=False)
-dfs = {'MANSCANS': df_MANSCANS,
-       'SCANS': df_SCANS,
-       'EVENTS': df_EVENTS,
-       'MEMBERSHIP': df_MEMEBRSHIP,
-       'RESERVATIONS': df_RESERVATIONS,
-       'SALES': df_SALES}
+dfs = {  # 'MANSCANS': df_MANSCANS,
+         # 'SCANS': df_SCANS,
+    'EVENTS': df_EVENTS,
+    'MEMBERSHIP': df_MEMEBRSHIP,
+    'RESERVATIONS': df_RESERVATIONS,
+    'SALES': df_SALES}
 
 # Feature Engineer the Member IDs
-for df_name in dfs.keys():
-    dfs[df_name] = engineer_member_id(dfs.get(df_name)).infer_objects()
+for df_name, df in dfs.items():
+    # dfs[df_name] = engineer_member_id(df).infer_objects()
+    if df_name == 'MEMBERSHIP':
+        continue
+    print(f'DATASET: {df_name}')
+    date_series = pd.to_datetime(df['date'].copy().dropna())
+    plt.figure(figsize=(12, 8))
+    date_series.hist(bins=100)
+    print(f"Earliest Date: {min(date_series)}")
+    print(f"Latest Date: {max(date_series)}")
+    print('\n\n')
+
+df = dfs['EVENTS'].copy()
+list(df)
+df['event_name'].unique()
+
+plt.figure(figsize=(30, 8))
+df['seqnumber'].hist(bins=10)
+df['reservation'].hist(bins=50)
+df[['date', 'created_on', 'event_end', 'start_time', 'end_time', 'reservation']]
+Counter(df['date'] == df['reservation'])
+df[df['date'] == '2022-09-02']
+df['location']
+
+df_SALES['service_provider'].unique()
+df_SALES[df_SALES['service_provider'] == 'DC Sports - Aquatics'].head(50)
+
+df_EVENTS.drop(['end_time', 'seqnumber'])
+
+# TODO: EVENTS, pick start time and end time
+# TODO: EVENTS, why are there 5 date columns
+# QUESTION: `reservation` is `event_end` or `created_on`
 
 # Set the MultiIndex on all the DataFrames and format aesthetically
 dfs_MI = {}
 for df_name in dfs.keys():
     dfs_MI[df_name] = util_reorder_MI(util_set_MI(dfs.get(df_name))).infer_objects()
+
 
 #
 
