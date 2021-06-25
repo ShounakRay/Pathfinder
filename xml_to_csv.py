@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: xml_to_csv.py
 # @Last modified by:   Ray
-# @Last modified time: 17-Jun-2021 11:06:52:526  GMT-0600
+# @Last modified time: 24-Jun-2021 10:06:57:570  GMT-0600
 # @License: [Private IP]
 
 # CONVERSION RUN-TIME: 3.5 SECONDS (EXCLUDING OPTIONAL DATETIME TYPE CHECKS)
@@ -69,7 +69,8 @@ _ = """
 #######################################################################################################################
 """
 
-df_s3 = pd.read_csv('Data/checks.csv').reset_index()
+df_s3 = pd.read_csv('Data/checks_more.csv').reset_index()
+df_s3['index'].min()
 df_s3.columns = [c.replace(' ', '_') for c in df_s3.columns if c != 'index'] + ['last_temp']
 df_s3['Check_Server'] = df_s3['Check_Server'] + ' ' + df_s3['last_temp']
 df_s3 = df_s3.drop('last_temp', axis=1).infer_objects()

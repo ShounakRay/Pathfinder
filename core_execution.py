@@ -3,16 +3,19 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: core_execution.py
 # @Last modified by:   Ray
-# @Last modified time: 23-Jun-2021 15:06:60:608  GMT-0600
+# @Last modified time: 24-Jun-2021 19:06:27:273  GMT-0600
 # @License: [Private IP]
 
 import math
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime
 
+import holidays as hds
+import networkx as nx
 import numpy as np
 import pandas as pd
+from suntime import Sun
 
 _ = """
 #######################################################################################################################
@@ -40,6 +43,10 @@ _ = """
 ########   DATA INGESTION   #########
 #####################################
 """
+
+
+def pull_from_S3(access_key):
+    pass
 
 
 _ = """
@@ -177,8 +184,11 @@ def engineer_member_data(df, mnum_col='member_number', GROUP_RELATIONS=group_rel
     return df   # Not required since all operations are inplace
 
 
-def retrieve_selective_ids(df, prefix=None, salutation_prefix=None):
-    None
+def retrieve_selective_membership(df, ids, prefix=None, salutation_prefix=None):
+    # df = member_df.copy()
+    subset = df[df['member_number'].isin(ids)]
+
+    return subset
 
 
 _ = """
@@ -189,18 +199,58 @@ _ = """
 
 
 def checks_formatting(df):
+    # Fix input columns before any further pre-processing
     df.reset_index(inplace=True)
     df.columns = [c.replace(' ', '_') for c in df.columns if c != 'index'] + ['last_temp']
     df['Check_Server'] = df['Check_Server'] + ' ' + df['last_temp']
     df.drop('last_temp', axis=1, inplace=True)
 
-    # for col in ['Check_Creation_Date']:
-    #     df[col] = pd.to_datetime(df[col])
-    #
-    # for col in ['Check_Open_Time', 'Check_Close_Time']:
-    #     df[col] = df[col].apply(lambda x: datetime.strptime(x, '%H:%M:%S').time() if x == x else np.nan)
+    for col in ['Check_Creation_Date']:
+        df[col] = pd.to_datetime(df[col])
+
+    for col in ['Check_Open_Time', 'Check_Close_Time']:
+        df[col] = df[col].apply(lambda x: datetime.strptime(x, '%H:%M:%S').time() if x == x else np.nan)
+
+    # Macro, Holidays
+    CAD_Holidays = hds.CAN(years=list(set(df['Check_Creation_Date'].apply(lambda x: x.date().year))))
+    df['Holiday_Name'] = df['Check_Creation_Date'].apply(lambda d: CAD_Holidays.get(d))
+    df['Holiday'] = df['Holiday_Name'].apply(lambda name: True if type(name) == str else False)
+
+    # Macro, Weekdays
+    day_dict = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday', 4: 'Friday', 5: 'Saturday', 6: 'Sunday'}
+    df['Weekday_Number'] = df['Check_Creation_Date'].apply(lambda d: d.weekday())
+    df['Weekend'] = df['Weekday_Number'].apply(lambda x: True if x in [5, 6] else False)
+    df['Weekday'] = ~df['Weekend']
+    df['Day_Name'] = df['Weekday_Number'].apply(day_dict.get)
+    df['Day_Number_in_Year'] = df['Check_Creation_Date'].apply(lambda d: d.timetuple().tm_yday)
+
+    # Micro, Time of Day
+    sun = Sun((latitude := 51.0447), (longitude := -114.0719))
+    sr, ss = sun.get_local_sunrise_time(), sun.get_local_sunset_time()
 
     return df   # Not required since all operations are inplace
+
+
+def retrieve_selective_activities(df, service_providers=None, item_groups=None, item_names=None):
+    kwargs = locals().copy()
+    kwargs.pop('df')
+
+    # # NOTE: For SALES data, testing...
+    # df = df_SALES.copy()
+
+    # NOTE: For checks.csv data, testing...
+    df = checks_df.copy().rename(columns={'Open_On_Terminal': 'service_provider'})
+
+    # Dynamic filtering
+    for var_name, filts in kwargs.items():
+        if filts is not None:
+            var_name = var_name[:-1]
+            print(f'Filtering on {var_name}...')
+            df = df[df[var_name].isin(filts)]
+
+    # TODO: Ultimately, CHECK and SALES data should be merged into one dataframe
+
+    return df
 
 
 _ = """
@@ -208,6 +258,53 @@ _ = """
 ############   STAGE 3   ############
 #####################################
 """
+
+
+def retrieve_selective_transactions(df, start_date=None, end_date=None, holidays=None,
+                                    weekdays=None, repeating_days=None):
+    # # NOTE: For SALES data, testing...
+    # df = df_SALES.copy()
+
+    # NOTE: For checks.csv data, testing...
+    df = checks_df.copy()
+
+    # Filter by simple range
+    if not bool(start_date):
+        end_date = df['Check_Creation_Date'].min()
+    if not bool(end_date):
+        end_date = df['Check_Creation_Date'].max()
+    bounds = [start_date, end_date]
+    for d in bounds:
+        bounds[bounds.index(d)] = datetime.strptime(d, '%Y-%m-%d')
+    df = df[(bounds[0] <= df['Check_Creation_Date']) & (df['Check_Creation_Date'] <= bounds[1])]
+
+    # Filter by holidays
+
+
+_ = """
+#####################################
+############   STAGE 4   ############
+#####################################
+"""
+
+
+def restructure_to_connections(df, dict_repl='default'):
+    if dict_repl == 'default':
+        dict_repl = {'Open_On_Terminal': 'to',
+                     'Close_On_Terminal': 'from',
+                     'Check_Open_Time': 'open_time',
+                     'Check_Close_Time': 'close_time'}
+    # TODO: Include membership information in meta data (adjust groupby operation accordingly)
+    storage = df.rename(columns=dict_repl).groupby(['Member_Number',
+                                                    'Check_Creation_Date']
+                                                   )[['to',
+                                                      'from',
+                                                      'open_time',
+                                                      'close_time']].apply(dict).apply(lambda d: {k: v.to_list()
+                                                                                                  for k, v in
+                                                                                                  d.items()})
+
+    return storage
 
 
 _ = """
@@ -225,52 +322,100 @@ _ = """
 # TEMP ingestion -> Should ultimately be a different dataset
 checks_df = checks_formatting(pd.read_csv('Data/checks.csv')).infer_objects()
 
+list(checks_df)
+
 sprov_catalog = set(list(checks_df['Open_On_Terminal'].unique()) + list(checks_df['Close_On_Terminal'].unique()))
 serve_catalog = set(checks_df['Check_Server'])
-incomplete_linkage_catalog = checks_df.set_index('Open_On_Terminal')['Check_Server'].to_dict()
+linkage = defaultdict(list)
+for terminal, server in checks_df.set_index('Open_On_Terminal')['Check_Server'].items():
+    linkage[terminal].append(server)
+    linkage[terminal] = list(set(linkage[terminal]))
 
 _ = """
 #######################################################################################################################
 #####################################   MODULE 3 – TIME/ACTIVTIY CONSIDERATION   ######################################
 #######################################################################################################################
 """
-start_date = 'SOME_DATE_1'
-end_date = 'SOME_DATE_2'
-holidays = True
-weekdays = True
-repeating = ['Monday', 'Tuesday', 'Friday']
 
+# HIGHER RESOLUTION: SERVICE PROVIDER, ITEM GROUP, ITEM NAME
+df_SALES = pd.read_csv("Data/SALES.csv", low_memory=False)
+# LOWER RESOLUTION: SERVICE PROVIDER (PROXY)
 
 _ = """
 #######################################################################################################################
 #########################################   APPLICATION 1 – APPLY FILTERING   #########################################
 #######################################################################################################################
 """
-# checks_df[checks_df['Member_Number'] == '5576'].groupby('Check_Creation_Date')['Check_Server'].count()
-# Counter(checks_df['Check_Open_Time'] == checks_df['Check_Close_Time'])
 # TODO: Given start and end times per day, determine location path per member number
+# MEMBER FILTERS
+member_ids = ['1002', '1002-1', '1002-2']
 
-dict_repl = {'Open_On_Terminal': 'to',
-             'Close_On_Terminal': 'from',
-             'Check_Open_Time': 'open_time',
-             'Check_Close_Time': 'close_time'}
+# ACTIVITY FILTERS
+# NOTE: Current absence of item_group and item_name in the SALES data limits resolution
+# NOTE: However, client flow can still be mapped using open and close terminals
+#       (although you don't know what they bought in this time)
+service_providers = ['DC Cafe29 Self Serve', 'DC Cafe29 Stir Fry', 'DC Cafe29 Salad Bar', 'DC Point After S']
+item_groups = ['DC Fitness - Merchandise', 'DC Fitness - Personal Training', 'DC Badminton - Private Lessons']
+item_names = ['Kickboxing Tank Top', 'Kickboxing T-shirt', 'Kickboxing Shin Pads', 'Kickboxing Shorts Premium']
 
-storage = checks_df.rename(columns=dict_repl).groupby(['Member_Number',
-                                                       'Check_Creation_Date']
-                                                      )[['to',
-                                                         'from',
-                                                         'open_time',
-                                                         'close_time']].apply(dict).apply(lambda d: {k: v.to_list()
-                                                                                                     for k, v in
-                                                                                                     d.items()})
+# TIME FILTERS
+start_date = '2021-01-01'
+end_date = '2021-05-29'
+holidays = True
+weekdays = True
+repeating_days = ['Monday', 'Tuesday', 'Friday']
+time_of_day = ['Morning', 'Afternoon', 'Evening']
 
-c = 0
-for key, data in storage.items():
-    c += 1
-
+# NOTE: Get specific member information following inputted requirements
+selective_members = retrieve_selective_membership(member_df, ids=member_ids)
+# NOTE: Get filtered occurrence data following inputted specific event/activity/transaction requirements
+selective_occurences = retrieve_selective_activities(checks_df,
+                                                     service_providers=service_providers,
+                                                     item_groups=None,
+                                                     item_names=None)
+# NOTE: Get specific check data following inputted time requirements
+final_occurrences = retrieve_selective_transactions(selective_occurences,
+                                                    start_date=start_date,
+                                                    end_date=end_date,
+                                                    holidays=holidays,
+                                                    weekdays=weekdays,
+                                                    repeating_days=repeating_days)
+# NOTE: Merge transactions and member data
+final_subset = pd.merge(selective_members, final_occurrences, on='member_number').infer_objects()
 
 _ = """
 #######################################################################################################################
 ###########################################   APPLICATION 2 – MAKE GRAPH   ############################################
 #######################################################################################################################
 """
+
+# Re-structure so it's easy to make graphs
+connections = restructure_to_connections(final_subset)
+
+# Make networkx Graph
+internal_graph = nx.DiGraph()
+c = 0
+for key, data in connections.items():
+    c += 1
+    # TODO: Add edges (nodes implicity added)
+
+
+# TODO: Convert networkx graph to VIS.JS Graph
+
+# GLENCOE IDEAS:
+# IDEA: Detecting high traffic times, spacing them out
+#       > Staffing proxy
+# IDEA: Bundling pricing, classes/reservations VERSUS. Balance with traffic due to popularity
+#       > How do you analyze popularity trends for specific groups/providers and balance traffic?
+# IDEA: More insightful member lookup with buying patterns
+# TEMP: Bring up Forms...
+
+# TRAFFIC <-> BUNDLING <-> MARKETING
+# Level of specificity: Service Provider, Age Groups, Time/Day, Membership
+
+# NOTE: November 2019 -> June 2020
+# NOTE: All of 2019 (Seasonanility, Times)
+
+# EOF
+
+# EOF

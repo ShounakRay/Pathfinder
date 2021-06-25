@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 22-Jun-2021 17:06:97:971  GMT-0600
+# @Last modified time: 24-Jun-2021 19:06:88:883  GMT-0600
 # @License: [Private IP]
 
 import functools
@@ -356,6 +356,8 @@ df['location']
 
 df_SALES['service_provider'].unique()
 df_SALES[df_SALES['service_provider'] == 'DC Sports - Aquatics'].head(50)
+
+df_SALES[df_SALES['price'] == 0]
 
 df_EVENTS.drop(['end_time', 'seqnumber'])
 
