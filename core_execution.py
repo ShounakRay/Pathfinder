@@ -3,19 +3,32 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: core_execution.py
 # @Last modified by:   Ray
-# @Last modified time: 24-Jun-2021 19:06:27:273  GMT-0600
+# @Last modified time: 30-Jun-2021 16:06:07:071  GMT-0600
 # @License: [Private IP]
 
+import ast
+import io
 import math
 import re
-from collections import Counter, defaultdict
-from datetime import datetime
+from collections import defaultdict
+from datetime import date, datetime, time, timedelta
 
+import boto3
 import holidays as hds
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
+from cryptography.fernet import Fernet
+from dateutil import tz
 from suntime import Sun
+
+# QUESTION What does a `marital status` of 0 mean?
+# QUESTION What does nan `marital_status` value mean?
+# QUESTION What does nan `billing cycle` mean? Forgot to record or defaults to something?
+# QUESTION What does nan `source` value mean?
+# QUESTION Can we assume that checks are opened and closed on the same day – in the ideal world?
+
 
 _ = """
 #######################################################################################################################
@@ -23,6 +36,7 @@ _ = """
 #######################################################################################################################
 """
 
+# FEATURE ENGINEERING REFERENCE
 group_relations = {'GC': 'Golf Club',
                    'AFF': 'Affiliate',
                    'INT': 'Internal (INT)',
@@ -31,6 +45,11 @@ group_relations = {'GC': 'Golf Club',
                    'LG': 'League',
                    'CORP': 'Corporate'}
 
+# FILE INGESTION
+part_1, part_2, access_key, secret_key, bucket = [None] * 5  # Set to None just to avoid linter warnings
+# > All these variables are implicitly loaded credentials into memory below...
+for var, val in ast.literal_eval(open('.s3_credentials.txt', 'r').read()).items():
+    exec(f"{var} = '{val}'")
 
 _ = """
 #######################################################################################################################
@@ -45,20 +64,93 @@ _ = """
 """
 
 
-def pull_from_S3(access_key):
-    pass
+def pull_from_S3(latest=True, specific_date=None,
+                 part_1=part_1, part_2=part_2,
+                 access_key=access_key, secret_key=secret_key,
+                 bucket=bucket):
+    """HELPER DEFINITIONS"""
+    f = Fernet(bytes((part_1 + part_2).encode()))
+    to_zone = tz.gettz('America/Edmonton')
+
+    def encrypt_msg(message, fernet_key=f):
+        return fernet_key.encrypt(bytes(message.encode()))
+
+    def decrypt_msg(encrypted_message, fernet_key=f):
+        return fernet_key.decrypt(bytes(encrypted_message)).decode()
+
+    def get_lastmodified_of_file(DS, f_name, to_zone=to_zone, adjusted=True):
+        extracted = DS.client.get_object(Bucket=DS.bucket, Key=f_name)['LastModified'].astimezone(to_zone).date()
+        return (extracted - timedelta(days=1) if adjusted else extracted)
+
+    class DataStream():
+        def __init__(self, bucket, access_key, secret_key):
+            self.bucket = bucket
+            self.client = boto3.client('s3',
+                                       aws_access_key_id=str(decrypt_msg(access_key)),
+                                       aws_secret_access_key=str(decrypt_msg(secret_key)))
+
+        def get_all_files(self, folder=''):
+            paginator = self.client.get_paginator('list_objects')
+            pages, items = paginator.paginate(Bucket=self.bucket, Prefix=folder), []
+            try:
+                for page in pages:
+                    for obj in page['Contents']:
+                        items.append(obj['Key'])
+                return items
+            except Exception as e:
+                print(e)
+                return []
+
+        def read_s3(self, path, header='infer'):  # , sheet_name=0
+            source = self.client.get_object(Bucket=self.bucket, Key=path)
+            tdf = pd.read_csv(io.BytesIO(source['Body'].read()), encoding='cp1252',
+                              header=header) if '.csv' in path else None
+            return tdf
+
+    """PROCESSING"""
+
+    DS = DataStream(bucket, access_key, secret_key)
+
+    if latest:
+        expected_filename = f'checks_{str(expected_date := datetime.now().date() - timedelta(days=1))}.csv'
+        if expected_filename in DS.get_all_files():
+            data = DS.read_s3(expected_filename)
+        else:
+            file_tstamps = {f_name: get_lastmodified_of_file(DS, f_name) for f_name in DS.get_all_files()}
+            latest_available_date = file_tstamps[(latest_available_name := sorted(file_tstamps,
+                                                                                  key=file_tstamps.get,
+                                                                                  reverse=True)[0])]
+            if latest_available_date == expected_date:
+                print(f'Incorrectly Named! Name: "{latest_available_name}" Date: "{latest_available_date}"')
+                print(f'Should be "{expected_filename}"')
+                print('However, this file contains the latest data. Pulling..."')
+                data = DS.read_s3(latest_available_name)
+            else:
+                print(f'Data was NOT pushed for the expected date of "{expected_date}"')
+                print(f'The latest file has Name: "{latest_available_name}" Date: "{latest_available_date}"')
+                raise ValueError('Forcefully terminated in "pull_from_S3" > `latest` flow')
+    elif specific_date is not None:
+        inv_file_tstamps = {get_lastmodified_of_file(DS, f_name): f_name for f_name in DS.get_all_files()}
+        file_name = inv_file_tstamps.get(datetime.strptime(specific_date, '%Y-%m-%d').date())
+        if bool(file_name):
+            data = DS.read_s3(file_name)
+        else:
+            print(f'No data was pushed to S3 on "{str(specific_date)}"!')
+            raise ValueError('Forcefully terminated in "pull_from_S3 > `specific_date` flow"')
+
+    return data
 
 
 _ = """
 #####################################
-############   STAGE 1   ############
+#######   MEMBERSHIP STUFF   ########
 #####################################
 """
 
 
 def engineer_member_data(df, mnum_col='member_number', GROUP_RELATIONS=group_relations):
     """Feature Engineers new member groupings based on provided member number column.
-       Also condenses available columns to minimze entropy/confusion.
+       Also condenses available columns to minimze entropy / confusion.
 
     Parameters
     ----------
@@ -172,11 +264,6 @@ def engineer_member_data(df, mnum_col='member_number', GROUP_RELATIONS=group_rel
     for phn_col in ['home_phone', 'business_phone', 'cell_phone']:
         df[phn_col] = df[phn_col].apply(lambda x: str(x))
 
-    # QUESTION What does a `marital status` of 0 mean?
-    # QUESTION What does nan `marital_status` value mean?
-    # QUESTION What does nan `billing cycle` mean? Forgot to record or defaults to something?
-    # QUESTION What does nan `source` value mean?
-
     # NOTE: Only dropping these next columns since they're consistently empty
     final_drop += ['salutation_prefix', 'deactivation_date', 'card_template', 'slip_rate',  'address_name', 'company']
     _ = [df.drop(col, inplace=True, axis=1) for col in final_drop]
@@ -193,7 +280,7 @@ def retrieve_selective_membership(df, ids, prefix=None, salutation_prefix=None):
 
 _ = """
 #####################################
-############   STAGE 2   ############
+#######   CHECK/SALES STUFF   #######
 #####################################
 """
 
@@ -211,6 +298,33 @@ def checks_formatting(df):
     for col in ['Check_Open_Time', 'Check_Close_Time']:
         df[col] = df[col].apply(lambda x: datetime.strptime(x, '%H:%M:%S').time() if x == x else np.nan)
 
+    return df.infer_objects()
+
+
+def checks_engineering(df):
+    def engineer_time_of_day(df):
+        # Morning is from sunrise to high noon
+        # Afternoon is from noon to 6 PM (manual entry)
+        # Evening is from 6 PM to sunset
+        # Night is from sunset to sunrise
+        sun = Sun(51.0447, -114.0719)
+        sr, ss = sun.get_local_sunrise_time(), sun.get_local_sunset_time()
+
+        times = {(sr.time(), time(hour=11, minute=59, second=59)): 'Morning',
+                 (time(hour=12, minute=00, second=00), time(hour=17, minute=59, second=59)): 'Afternoon',
+                 (time(hour=18, minute=00, second=00), ss.time()): 'Evening',
+                 (ss.time(), time(hour=23, minute=59, second=59)): 'Night'}
+        # If .get returns None, the respective time is in Night
+
+        for check_col in ['Check_Open_Time', 'Check_Close_Time']:
+            nan_indices = df[check_col].isna()[df[check_col].isna()].index
+            df[check_col] = df[check_col].replace(np.nan, time(hour=18))
+            df[f'{check_col}_State'] = df[check_col].apply(lambda x: [times.get(bnd) for bnd in times.keys()
+                                                                      if (bnd[0] <= x) & (x <= bnd[1])]
+                                                           ).apply(lambda i: i[0] if i != [] else 'Night')
+            df.loc[nan_indices, [check_col, f'{check_col}_State']] = np.nan
+            # df.loc[nan_indices, f'{check_col}_State'] = np.nan
+
     # Macro, Holidays
     CAD_Holidays = hds.CAN(years=list(set(df['Check_Creation_Date'].apply(lambda x: x.date().year))))
     df['Holiday_Name'] = df['Check_Creation_Date'].apply(lambda d: CAD_Holidays.get(d))
@@ -225,10 +339,18 @@ def checks_formatting(df):
     df['Day_Number_in_Year'] = df['Check_Creation_Date'].apply(lambda d: d.timetuple().tm_yday)
 
     # Micro, Time of Day
-    sun = Sun((latitude := 51.0447), (longitude := -114.0719))
-    sr, ss = sun.get_local_sunrise_time(), sun.get_local_sunset_time()
+    engineer_time_of_day(df)
 
-    return df   # Not required since all operations are inplace
+    # Check Naive Processing
+    dummy_date = date(1, 1, 1)
+    for time_col in ['Check_Close_Time', 'Check_Open_Time']:
+        df['temp_' + time_col] = df[time_col].apply(lambda x: datetime.combine(dummy_date, x) if x == x else np.nan)
+    df['Check_Elapsed'] = (df['temp_Check_Close_Time'] - df['temp_Check_Open_Time']).apply(lambda x: x.seconds / 3600)
+
+    for col in [c for c in df.columns if c.startswith('temp_')]:
+        df.drop(col, axis=1, inplace=True)
+
+    return df.infer_objects()   # Not required since all operations are inplace
 
 
 def retrieve_selective_activities(df, service_providers=None, item_groups=None, item_names=None):
@@ -255,7 +377,7 @@ def retrieve_selective_activities(df, service_providers=None, item_groups=None, 
 
 _ = """
 #####################################
-############   STAGE 3   ############
+##########   TIME FILTER   ##########
 #####################################
 """
 
@@ -283,7 +405,7 @@ def retrieve_selective_transactions(df, start_date=None, end_date=None, holidays
 
 _ = """
 #####################################
-############   STAGE 4   ############
+#########   MAKING GRAPH   ##########
 #####################################
 """
 
@@ -319,11 +441,23 @@ _ = """
 ###########################################   MODULE 2 – ACTIVITY CATALOG   ###########################################
 #######################################################################################################################
 """
-# TEMP ingestion -> Should ultimately be a different dataset
-checks_df = checks_formatting(pd.read_csv('Data/checks.csv')).infer_objects()
+# NOTE: What the FINAL ingestion process will look like...
+# previous_cumulative, latest_data = pull_from_external_DB(), pull_from_S3()
+# latest_data = checks_engineering(checks_formatting(latest_data))
+# checks_df = pd.concat([previous_cumulative, latest_data]).infer_objects()
+# DS.push_NEW_CUMULATIVE_data_to_S3(checks_df)
 
-list(checks_df)
+# NOTE: Currently data is being locally pulled and processed
+checks_df = checks_formatting(pd.read_csv('Data/checks-yyyymmdd.csv')).infer_objects()
+checks_df = checks_engineering(checks_df)
 
+
+# TEMP: Exploration
+# checks_df[checks_df['Check_Elapsed'] > 0.05]['Check_Elapsed'].plot()
+# _temp = (checks_df['amount'] - (checks_df['Price'] * checks_df['Quantity'])).value_counts(bins=100).to_frame().reset_index()
+# _temp[(_temp['index'] > 0) & (_temp['index'] < 100)].plot(x='index', y=0, kind='scatter', figsize=(18, 12))
+
+# NOTE: Making catalogs on the fly (TEMP: There should be another dataset(s) for this)
 sprov_catalog = set(list(checks_df['Open_On_Terminal'].unique()) + list(checks_df['Close_On_Terminal'].unique()))
 serve_catalog = set(checks_df['Check_Server'])
 linkage = defaultdict(list)
@@ -337,10 +471,8 @@ _ = """
 #######################################################################################################################
 """
 
-# HIGHER RESOLUTION: SERVICE PROVIDER, ITEM GROUP, ITEM NAME
-df_SALES = pd.read_csv("Data/SALES.csv", low_memory=False)
-# LOWER RESOLUTION: SERVICE PROVIDER (PROXY)
-
+# RESOLUTION LEVELS: SERVICE PROVIDER (LOW), ITEM GROUP (HIGH) , ITEM NAME (HIGH)
+# df_SALES = pd.read_csv("Data/SALES.csv", low_memory=False) or `checks_df` at this point.
 _ = """
 #######################################################################################################################
 #########################################   APPLICATION 1 – APPLY FILTERING   #########################################
@@ -382,6 +514,7 @@ final_occurrences = retrieve_selective_transactions(selective_occurences,
                                                     repeating_days=repeating_days)
 # NOTE: Merge transactions and member data
 final_subset = pd.merge(selective_members, final_occurrences, on='member_number').infer_objects()
+
 
 _ = """
 #######################################################################################################################

@@ -10,7 +10,7 @@
 S3Keys
 *.txt
 ReferencePY
-
+*.s3_credentials.txt
 
 # Ignore all graphs
 EXT-STRAT
