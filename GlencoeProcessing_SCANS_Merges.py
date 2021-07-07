@@ -3,7 +3,7 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: scan_analysis.py
 # @Last modified by:   Ray
-# @Last modified time: 24-Jun-2021 19:06:88:883  GMT-0600
+# @Last modified time: 07-Jul-2021 13:07:58:587  GMT-0600
 # @License: [Private IP]
 
 import functools
@@ -328,6 +328,23 @@ dfs = {  # 'MANSCANS': df_MANSCANS,
     'MEMBERSHIP': df_MEMEBRSHIP,
     'RESERVATIONS': df_RESERVATIONS,
     'SALES': df_SALES}
+
+
+list(example)
+example = df_RESERVATIONS.dropna(thresh=10).sample(10)
+example['Time_Of_Reservation'] = 'Some specific time'
+example['Time_Of_Reserved_Activity'] = 'Some specific time'
+example[['member_number', 'date', 'Time_Of_Reservation', 'location',
+         'reservation_type', 'status', 'charge_item', 'activity',
+         'players', 'party_size', 'date', 'Time_Of_Reserved_Activity',
+         'start_time', 'end_time']]
+
+df_SALES['service_provider'].unique()
+
+
+temperate = pd.read_csv('/Users/Ray/Downloads/checks-yymmdd.csv')
+
+temperate['Check Creation Date'].max()
 
 # Feature Engineer the Member IDs
 for df_name, df in dfs.items():

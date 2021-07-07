@@ -3,15 +3,16 @@
 # @Email:  rijshouray@gmail.com
 # @Filename: core_execution.py
 # @Last modified by:   Ray
-# @Last modified time: 30-Jun-2021 16:06:07:071  GMT-0600
+# @Last modified time: 07-Jul-2021 13:07:77:771  GMT-0600
 # @License: [Private IP]
 
 import ast
 import io
 import math
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime, time, timedelta
+from itertools import chain
 
 import boto3
 import holidays as hds
@@ -19,6 +20,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from cryptography.fernet import Fernet
 from dateutil import tz
 from suntime import Sun
@@ -29,12 +31,17 @@ from suntime import Sun
 # QUESTION What does nan `source` value mean?
 # QUESTION Can we assume that checks are opened and closed on the same day – in the ideal world?
 
+# TODO We have repeated check open and close times in the dataset?
+# Sales, Reservations,
 
 _ = """
 #######################################################################################################################
 #############################################   HYPERPARAMETER SETTINGS   #############################################
 #######################################################################################################################
 """
+
+# _temp = pd.read_csv('/Users/Ray/Downloads/checks-yymmdd.csv')
+# _temp['Check Creation Date'].min()
 
 # FEATURE ENGINEERING REFERENCE
 group_relations = {'GC': 'Golf Club',
@@ -286,16 +293,18 @@ _ = """
 
 
 def checks_formatting(df):
-    # Fix input columns before any further pre-processing
-    df.reset_index(inplace=True)
-    df.columns = [c.replace(' ', '_') for c in df.columns if c != 'index'] + ['last_temp']
-    df['Check_Server'] = df['Check_Server'] + ' ' + df['last_temp']
-    df.drop('last_temp', axis=1, inplace=True)
+    # # Fix input columns before any further pre-processing
+    # df.reset_index(inplace=True)
+    # df.columns = [c.replace(' ', '_') for c in df.columns if c != 'index'] + ['last_temp']
+    # df['Check_Server'] = df['Check_Server'] + ' ' + df['last_temp']
+    # df.drop('last_temp', axis=1, inplace=True)
+
+    df.columns = [c.replace(' ', '_') for c in df.columns]
 
     for col in ['Check_Creation_Date']:
         df[col] = pd.to_datetime(df[col])
 
-    for col in ['Check_Open_Time', 'Check_Close_Time']:
+    for col in ['Check_Open_Time', 'Check_Close_Time', 'Check_Menu_Item_Insert_Time']:
         df[col] = df[col].apply(lambda x: datetime.strptime(x, '%H:%M:%S').time() if x == x else np.nan)
 
     return df.infer_objects()
@@ -358,21 +367,29 @@ def retrieve_selective_activities(df, service_providers=None, item_groups=None, 
     kwargs.pop('df')
 
     # # NOTE: For SALES data, testing...
-    # df = df_SALES.copy()
+    # df = checks_df.copy()
 
     # NOTE: For checks.csv data, testing...
-    df = checks_df.copy().rename(columns={'Open_On_Terminal': 'service_provider'})
+    rel_dict = {'service_providers': ['Open_On_Terminal', 'Close_On_Terminal'],
+                'item_groups': ['Item_group'],
+                'item_names': ['Item_name']}
 
     # Dynamic filtering
     for var_name, filts in kwargs.items():
         if filts is not None:
-            var_name = var_name[:-1]
-            print(f'Filtering on {var_name}...')
-            df = df[df[var_name].isin(filts)]
+            for df_name in rel_dict.get(var_name):
+                print(f'Filtering on {df_name}...')
+                df = df[df[df_name].isin(filts)]
 
     # TODO: Ultimately, CHECK and SALES data should be merged into one dataframe
 
     return df
+
+
+def t_s(t):
+    if t != t:
+        return np.nan
+    return ((t.hour * 60 + t.minute) * 60) + t.second
 
 
 _ = """
@@ -383,7 +400,7 @@ _ = """
 
 
 def retrieve_selective_transactions(df, start_date=None, end_date=None, holidays=None,
-                                    weekdays=None, repeating_days=None):
+                                    weekdays=None, repeating_days=None, time_of_day=None):
     # # NOTE: For SALES data, testing...
     # df = df_SALES.copy()
 
@@ -400,7 +417,25 @@ def retrieve_selective_transactions(df, start_date=None, end_date=None, holidays
         bounds[bounds.index(d)] = datetime.strptime(d, '%Y-%m-%d')
     df = df[(bounds[0] <= df['Check_Creation_Date']) & (df['Check_Creation_Date'] <= bounds[1])]
 
-    # Filter by holidays
+    kwargs = locals().copy()
+    kwargs.pop('df')
+    kwargs.pop('start_date')
+    kwargs.pop('end_date')
+
+    rel_dict = {'holidays': ['Holiday'],
+                'weekdays': ['Weekday'],
+                'repeating_days': ['Day_Name'],
+                'time_of_day': ['Check_Open_Time_State', 'Check_Close_Time_State']}
+
+    # Dynamic filtering
+    for var_name, filts in kwargs.items():
+        if filts is not None:
+            filts = list(chain.from_iterable(list([filts])))
+            for df_name in rel_dict.get(var_name):
+                print(f'Filtering on {df_name}...')
+                df = df[df[df_name].isin(filts)]
+
+    return df
 
 
 _ = """
@@ -448,11 +483,21 @@ _ = """
 # DS.push_NEW_CUMULATIVE_data_to_S3(checks_df)
 
 # NOTE: Currently data is being locally pulled and processed
-checks_df = checks_formatting(pd.read_csv('Data/checks-yyyymmdd.csv')).infer_objects()
+checks_df = checks_formatting(pd.read_csv('Data/checks-yymmdd.csv')).infer_objects()
 checks_df = checks_engineering(checks_df)
 
-
-# TEMP: Exploration
+# TEMP: Check location column
+# checks_df['Location'].unique()
+# checks_df[checks_df['Location'] == 'DC Events']
+# Counter(checks_df['Check_Status'])
+# _temp = checks_df[checks_df['Check_Status'] == 'Posted'].copy()
+# Counter(_temp['Check_Menu_Item_Insert_Time'].isna())
+# TEMP: Check if insert time falls withing open and close times
+# _temp = checks_df.sample(100).reset_index(drop=True)
+# _temp['Check_Open_Time'].apply(t_s).plot(figsize=(22, 16), c='red')
+# _temp['Check_Close_Time'].apply(t_s).plot(figsize=(22, 16), c='blue')
+# _temp['Check_Menu_Item_Insert_Time'].apply(t_s).plot(figsize=(22, 16), c='green')
+# TEMP: Check Time Elapsed
 # checks_df[checks_df['Check_Elapsed'] > 0.05]['Check_Elapsed'].plot()
 # _temp = (checks_df['amount'] - (checks_df['Price'] * checks_df['Quantity'])).value_counts(bins=100).to_frame().reset_index()
 # _temp[(_temp['index'] > 0) & (_temp['index'] < 100)].plot(x='index', y=0, kind='scatter', figsize=(18, 12))
@@ -471,6 +516,16 @@ _ = """
 #######################################################################################################################
 """
 
+"""MEMBER INVESTIGATION"""
+_temp = checks_df[checks_df['Member_Number'] == '4220-1'].reset_index(drop=True)
+# _ = pd.Series(Counter(_temp['Check_Creation_Date'])).hist(bins=30)
+c = 0
+store = []
+for grouper, df in _temp.groupby('Check_Creation_Date'):
+    if len(df) > 3:
+        break
+    pass
+
 # RESOLUTION LEVELS: SERVICE PROVIDER (LOW), ITEM GROUP (HIGH) , ITEM NAME (HIGH)
 # df_SALES = pd.read_csv("Data/SALES.csv", low_memory=False) or `checks_df` at this point.
 _ = """
@@ -487,8 +542,9 @@ member_ids = ['1002', '1002-1', '1002-2']
 # NOTE: However, client flow can still be mapped using open and close terminals
 #       (although you don't know what they bought in this time)
 service_providers = ['DC Cafe29 Self Serve', 'DC Cafe29 Stir Fry', 'DC Cafe29 Salad Bar', 'DC Point After S']
-item_groups = ['DC Fitness - Merchandise', 'DC Fitness - Personal Training', 'DC Badminton - Private Lessons']
-item_names = ['Kickboxing Tank Top', 'Kickboxing T-shirt', 'Kickboxing Shin Pads', 'Kickboxing Shorts Premium']
+check_server = ['Cafe 29 Self Serve Till', 'Cafe 29 Salad Bar Till', 'Cafe 29 Stir Fry Till']
+item_groups = ['DC Beverages', 'DC Food - Appetizers', 'DC Food - Entrees', 'DC Food - Soups/Salads']
+item_names = ['SM Coffee', 'LG Muffin', 'SM Cappuccino', 'Good Choice Cookie', 'All Day Breakfast']
 
 # TIME FILTERS
 start_date = '2021-01-01'
@@ -511,7 +567,8 @@ final_occurrences = retrieve_selective_transactions(selective_occurences,
                                                     end_date=end_date,
                                                     holidays=holidays,
                                                     weekdays=weekdays,
-                                                    repeating_days=repeating_days)
+                                                    repeating_days=repeating_days,
+                                                    time_of_day=time_of_day)
 # NOTE: Merge transactions and member data
 final_subset = pd.merge(selective_members, final_occurrences, on='member_number').infer_objects()
 
@@ -535,6 +592,43 @@ for key, data in connections.items():
 
 # TODO: Convert networkx graph to VIS.JS Graph
 
+_ = """
+#####################################
+######   EXT – SPROV FREQ/DT   ######
+#####################################
+"""
+# for grouper, df in checks_df.groupby('Check_Creation_Date'):
+
+"""Histogram of Number of ALL Service Providers Accessed by ALL Members in a Day"""
+nondistinct_freq_over_time = checks_df.groupby(['Check_Creation_Date'])['Check_Server'].count()
+_ = sns.displot(nondistinct_freq_over_time).set_titles(
+    'Histogram of Average Number of ALL Service Providers Accessed by ALL Members in a Day')
+"""Time Series of Number of ALL Service Providers Accessed by ALL Members in a Day"""
+_ = nondistinct_freq_over_time.plot(figsize=(15, 8))
+"""Histogram of Number of DISTINCT Service Providers Accessed by ALL Members in a Day"""
+distinct_freq_over_time = checks_df.groupby(['Check_Creation_Date'])['Check_Server'].nunique()
+_ = sns.displot(distinct_freq_over_time)
+"""Time Series of Number of DISTINCT Service Providers Accessed by ALL Members in a Day"""
+_ = distinct_freq_over_time.plot(figsize=(15, 8))
+
+"""Histogram of Average Number of ALL Service Providers Accessed by a SINGLE Member in a Day"""
+nondistinct_member_freq = checks_df.groupby(['Check_Creation_Date', 'Member_Number'])[
+    'Check_Server'].count().reset_index().groupby('Check_Creation_Date')['Check_Server'].mean()
+_ = sns.displot(nondistinct_member_freq)
+"""Time Series of Average Number of ALL Service Providers Accessed by a SINGLE Member in a Day"""
+_ = nondistinct_member_freq.plot(figsize=(15, 8))
+
+"""Histogram of Average Number of DISTINCT Service Providers Accessed by a SINGLE Member in a Day"""
+distinct_member_freq = checks_df.groupby(['Check_Creation_Date', 'Member_Number'])[
+    'Check_Server'].nunique().reset_index().groupby('Check_Creation_Date')['Check_Server'].mean()
+_ = sns.displot(distinct_member_freq)
+"""Time Series of Average Number of DISTINCT Service Providers Accessed by a SINGLE Member in a Day"""
+_ = distinct_member_freq.plot(figsize=(15, 8))
+
+"""Time Series of Average Elapsed Time Accrued by ALL members in a Day"""
+elapsed_time = checks_df.groupby(['Check_Creation_Date'])['Check_Elapsed'].mean()
+_ = elapsed_time.plot(figsize=(15, 8))
+
 # GLENCOE IDEAS:
 # IDEA: Detecting high traffic times, spacing them out
 #       > Staffing proxy
@@ -542,10 +636,8 @@ for key, data in connections.items():
 #       > How do you analyze popularity trends for specific groups/providers and balance traffic?
 # IDEA: More insightful member lookup with buying patterns
 # TEMP: Bring up Forms...
-
 # TRAFFIC <-> BUNDLING <-> MARKETING
 # Level of specificity: Service Provider, Age Groups, Time/Day, Membership
-
 # NOTE: November 2019 -> June 2020
 # NOTE: All of 2019 (Seasonanility, Times)
 
